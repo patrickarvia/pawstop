@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f4ed">
+  <title>Pawstop — Better road trips with your dog</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <section id="planner" class="screen">
+    <div class="brand"><span class="mark">P</span><span>PAWSTOP</span></div>
+    <p class="eyebrow">ROAD TRIPS, BUILT AROUND YOUR DOG</p>
+    <h1>Better stops.<br>Happier dogs.</h1>
+    <p class="lede">Find practical green spaces along your route without hunting through maps while you drive.</p>
+
+    <div class="card form-card">
+      <label>From<input id="from" value="Jersey City, NJ"></label>
+      <label>To<input id="to" value="Chicago, IL"></label>
+      <div class="two">
+        <label>Dog's name<input id="dog" value="Conan"></label>
+        <label>Life stage<select id="age"><option selected>Puppy</option><option>Adult</option><option>Senior</option></select></label>
+      </div>
+      <div class="two">
+        <label>Break every<select id="break"><option>2 hours</option><option selected>2.5 hours</option><option>3 hours</option></select></label>
+        <label>Max detour<select id="detour"><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option></select></label>
+      </div>
+      <p class="label">Prioritize</p>
+      <div class="chips">
+        <button class="chip active">Large grass</button><button class="chip active">Low dog traffic</button>
+        <button class="chip active">Restrooms</button><button class="chip active">Minimal detours</button>
+      </div>
+      <label class="check"><input type="checkbox" checked> Avoid dedicated dog-relief areas when possible</label>
+      <button id="planBtn" class="primary">Plan my trip →</button>
+    </div>
+    <p class="fine">Prototype route recommendations are curated for the Jersey City → Chicago corridor.</p>
+  </section>
+
+  <section id="route" class="screen hidden">
+    <div class="topbar"><button class="back" id="backBtn">←</button><div class="brand small"><span class="mark">P</span><span>PAWSTOP</span></div></div>
+    <p class="eyebrow">YOUR PAWSTOP ROUTE</p>
+    <h2><span id="routeFrom"></span> <span class="muted">→</span> <span id="routeTo"></span></h2>
+    <p class="lede compact">Stops selected for <strong id="dogName"></strong> · <span id="profile"></span></p>
+    <div id="stops"></div>
+    <button id="needStop" class="need">🐾 <span id="needText">Conan needs a stop</span></button>
+    <p class="fine">Pawstop matches observable stop characteristics to your preferences. It does not assess medical safety.</p>
+  </section>
+
+  <section id="urgent" class="screen hidden">
+    <div class="topbar"><button class="back" id="urgentBack">←</button><div class="brand small"><span class="mark">P</span><span>PAWSTOP</span></div></div>
+    <p class="eyebrow">BEST STOP AHEAD</p>
+    <div class="hero-card">
+      <span class="badge">92% MATCH</span>
+      <h2>Hess Recreation Area</h2>
+      <p class="place">Danville, Pennsylvania</p>
+      <div class="bigtime">26 <small>min away</small></div>
+      <p class="detour">+6 min estimated detour</p>
+      <div class="features"><span>🌱 Large green space</span><span>🐕 Dogs permitted on leash</span><span>🚻 Restrooms</span><span>🚗 Parking</span></div>
+      <div class="why"><strong>Why Pawstop picked this</strong><p>You prefer larger green spaces and want to avoid concentrated highway pet-relief areas when possible.</p></div>
+      <button class="primary" onclick="alert('Navigation handoff would open here in V2.')">Navigate →</button>
+    </div>
+    <div class="alternatives"><strong>Other options</strong><span>Fastest</span><span>Largest green space</span><span>Restrooms</span></div>
+    <p class="fine">Current dog traffic and grass condition are not yet verified by Pawstop users.</p>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,6 +1,135 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f4ed"><title>Pawstop</title><link rel="stylesheet" href="style.css"></head><body><main>
-<section id="planner" class="screen"><div class="brand"><span class="mark">P</span><span>PAWSTOP</span></div><p class="eyebrow">ROAD TRIPS, BUILT AROUND YOUR DOG</p><h1>Better stops.<br>Happier dogs.</h1><p class="lede">Find practical green spaces along your route without hunting through maps while you drive.</p><div class="card form-card">
-<label>From<input id="from" value="Jersey City, NJ"></label><label>To<input id="to" value="Chicago, IL"></label><div class="two"><label>Dog's name<input id="dog" value="Conan"></label><label>Life stage<select id="age"><option selected>Puppy</option><option>Adult</option><option>Senior</option></select></label></div><div class="two"><label>Break every<select id="break"><option>2 hours</option><option selected>2.5 hours</option><option>3 hours</option></select></label><label>Max detour<select><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option></select></label></div><p class="label">Prioritize</p><div class="chips"><button class="chip active">Large grass</button><button class="chip active">Low dog traffic</button><button class="chip active">Restrooms</button><button class="chip active">Minimal detours</button></div><label class="check"><input type="checkbox" checked> Avoid dedicated dog-relief areas when possible</label><button id="planBtn" class="primary">Plan my trip →</button></div><p class="fine">Prototype route recommendations are curated for the Jersey City → Chicago corridor.</p></section>
-<section id="route" class="screen hidden"><div class="topbar"><button class="back" id="backBtn">←</button><div class="brand small"><span class="mark">P</span><span>PAWSTOP</span></div></div><p class="eyebrow">YOUR PAWSTOP ROUTE</p><h2><span id="routeFrom"></span> <span class="muted">→</span> <span id="routeTo"></span></h2><p class="lede compact">Stops selected for <strong id="dogName"></strong> · <span id="profile"></span></p><div id="stops"></div><button id="needStop" class="need">🐾 <span id="needText">Conan needs a stop</span></button><p class="fine">Pawstop matches observable stop characteristics to your preferences. It does not assess medical safety.</p></section>
-<section id="urgent" class="screen hidden"><div class="topbar"><button class="back" id="urgentBack">←</button><div class="brand small"><span class="mark">P</span><span>PAWSTOP</span></div></div><p class="eyebrow">BEST STOP AHEAD</p><div class="hero-card"><span id="urgentMatch" class="badge"></span><h2 id="urgentName"></h2><p id="urgentPlace" class="place"></p><div class="bigtime"><span id="urgentMinutes"></span> <small>min away</small></div><p id="urgentDetour" class="detour"></p><div id="urgentFeatures" class="features"></div><div class="why"><strong>Why Pawstop picked this</strong><p id="urgentWhy"></p></div><div id="urgentConfidence" class="confidence"></div><button id="navBtn" class="primary">Navigate →</button></div><div class="alternatives"><strong>Other options</strong><button data-alt="fastest">Fastest</button><button data-alt="grass">Largest green space</button><button data-alt="restrooms">Restrooms</button></div><p id="urgentCaveat" class="fine"></p></section>
-</main><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f6f1e7">
+  <title>Pawstop — Better stops. Happier dogs.</title>
+  <meta name="description" content="Dog-first road trip stop intelligence. Find practical green spaces matched to your dog and route preferences.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <section id="planner" class="screen">
+    <header class="brandbar">
+      <div class="brand"><span class="mark">P</span><span>PAWSTOP</span></div>
+      <span class="version">V2 PROTOTYPE</span>
+    </header>
+
+    <p class="eyebrow">ROAD TRIPS, BUILT AROUND YOUR DOG</p>
+    <h1>Better stops.<br>Happier dogs.</h1>
+    <p class="lede">Build a dog-friendly break plan around the route you're already driving.</p>
+
+    <div class="card form-card">
+      <div class="section-label">TRIP</div>
+      <label>From<input id="from" value="Jersey City, NJ"></label>
+      <label>To<input id="to" value="Chicago, IL"></label>
+
+      <div class="section-label">DOG PROFILE</div>
+      <div class="two">
+        <label>Dog's name<input id="dog" value="Conan"></label>
+        <label>Life stage
+          <select id="age"><option selected>Puppy</option><option>Adult</option><option>Senior</option></select>
+        </label>
+      </div>
+      <div class="two">
+        <label>Break every
+          <select id="break"><option value="2">2 hours</option><option value="2.5" selected>2.5 hours</option><option value="3">3 hours</option></select>
+        </label>
+        <label>Max detour
+          <select id="detour"><option value="5">5 minutes</option><option value="10" selected>10 minutes</option><option value="15">15 minutes</option></select>
+        </label>
+      </div>
+
+      <div class="section-label">PRIORITIZE</div>
+      <div class="chips" id="preferenceChips">
+        <button type="button" class="chip active" data-pref="grass">Large grass</button>
+        <button type="button" class="chip active" data-pref="traffic">Low dog traffic</button>
+        <button type="button" class="chip active" data-pref="restrooms">Restrooms</button>
+        <button type="button" class="chip active" data-pref="detour">Minimal detours</button>
+        <button type="button" class="chip" data-pref="fenced">Fenced space</button>
+        <button type="button" class="chip" data-pref="lighting">Good lighting</button>
+      </div>
+      <label class="check"><input id="avoidRelief" type="checkbox" checked> Avoid dedicated dog-relief areas when possible</label>
+      <button id="planBtn" class="primary">Build my Pawstop route →</button>
+    </div>
+
+    <p class="fine">V2 uses a curated Jersey City → Chicago corridor to demonstrate Pawstop's matching engine. Drive times and current conditions are not live-routed.</p>
+  </section>
+
+  <section id="route" class="screen hidden">
+    <div class="topbar">
+      <button class="back" id="backBtn">←</button>
+      <div class="brand small"><span class="mark">P</span><span>PAWSTOP</span></div>
+    </div>
+
+    <p class="eyebrow">YOUR PAWSTOP ROUTE</p>
+    <h2><span id="routeFrom"></span> <span class="muted">→</span> <span id="routeTo"></span></h2>
+    <p class="lede compact">Stops ranked for <strong id="dogName"></strong> based on the preferences you selected.</p>
+
+    <div class="trip-summary">
+      <div><span>PROFILE</span><strong id="profile"></strong></div>
+      <div><span>BREAK PLAN</span><strong id="breakPlan"></strong></div>
+      <div><span>MAX DETOUR</span><strong id="maxDetour"></strong></div>
+    </div>
+
+    <div class="route-line"><span class="route-dot start"></span><div></div><span class="route-dot end"></span></div>
+    <div id="stops"></div>
+
+    <button id="needStop" class="need">🐾 <span id="needText">Conan needs a stop</span></button>
+    <p class="fine">Pawstop matches observable stop characteristics to your preferences. It does not assess medical safety.</p>
+  </section>
+
+  <section id="urgent" class="screen hidden">
+    <div class="topbar">
+      <button class="back" id="urgentBack">←</button>
+      <div class="brand small"><span class="mark">P</span><span>PAWSTOP</span></div>
+    </div>
+
+    <p class="eyebrow">FIND A STOP AHEAD</p>
+    <h2 id="urgentTitle">How soon does Conan need a break?</h2>
+    <div class="time-pills">
+      <button class="time-pill" data-window="15">Within 15 min</button>
+      <button class="time-pill active" data-window="30">Within 30 min</button>
+      <button class="time-pill" data-window="60">Within 60 min</button>
+    </div>
+
+    <div id="urgentResult" class="hero-card">
+      <div class="urgent-head">
+        <span id="urgentMatch" class="badge"></span>
+        <span id="urgentType" class="type-badge"></span>
+      </div>
+      <h2 id="urgentName"></h2>
+      <p id="urgentPlace" class="place"></p>
+      <div class="bigtime"><span id="urgentMinutes"></span> <small>min ahead</small></div>
+      <p id="urgentDetour" class="detour"></p>
+      <div id="urgentFeatures" class="features"></div>
+
+      <div class="why">
+        <strong>Why Pawstop picked this</strong>
+        <p id="urgentWhy"></p>
+      </div>
+
+      <div class="community">
+        <div class="section-label">PAWSTOP REPORTS <span class="demo-label">DEMO DATA</span></div>
+        <div id="communityGrid" class="community-grid"></div>
+        <p id="lastVerified" class="verified"></p>
+      </div>
+
+      <div id="urgentConfidence" class="confidence"></div>
+      <button id="navBtn" class="primary">Navigate →</button>
+    </div>
+
+    <div class="alternatives">
+      <strong>Compare another option</strong>
+      <button data-alt="best">Best match</button>
+      <button data-alt="fastest">Fastest</button>
+      <button data-alt="grass">Largest grass</button>
+      <button data-alt="restrooms">Restrooms</button>
+    </div>
+    <p id="urgentCaveat" class="fine"></p>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

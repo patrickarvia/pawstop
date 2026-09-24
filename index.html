@@ -13,7 +13,7 @@
   <section id="planner" class="screen">
     <header class="brandbar">
       <div class="brand"><span class="mark">P</span><span>PAWSTOP</span></div>
-      <span class="version">V2 PROTOTYPE</span>
+      <span class="version">V2.1 PROTOTYPE</span>
     </header>
 
     <p class="eyebrow">ROAD TRIPS, BUILT AROUND YOUR DOG</p>
@@ -54,7 +54,7 @@
       <button id="planBtn" class="primary">Build my Pawstop route →</button>
     </div>
 
-    <p class="fine">V2 uses a curated Jersey City → Chicago corridor to demonstrate Pawstop's matching engine. Drive times and current conditions are not live-routed.</p>
+    <p class="fine">V2.1 uses a curated Jersey City → Chicago corridor to demonstrate Pawstop's matching engine. Drive times and current conditions are not live-routed.</p>
   </section>
 
   <section id="route" class="screen hidden">
@@ -65,7 +65,7 @@
 
     <p class="eyebrow">YOUR PAWSTOP ROUTE</p>
     <h2><span id="routeFrom"></span> <span class="muted">→</span> <span id="routeTo"></span></h2>
-    <p class="lede compact">Stops ranked for <strong id="dogName"></strong> based on the preferences you selected.</p>
+    <p class="lede compact">Stops planned for <strong id="dogName"></strong> around your selected break cadence and preferences.</p>
 
     <div class="trip-summary">
       <div><span>PROFILE</span><strong id="profile"></strong></div>
@@ -74,6 +74,7 @@
     </div>
 
     <div class="route-line"><span class="route-dot start"></span><div></div><span class="route-dot end"></span></div>
+    <p id="routeLogic" class="route-logic"></p>
     <div id="stops"></div>
 
     <button id="needStop" class="need">🐾 <span id="needText">Conan needs a stop</span></button>
@@ -103,6 +104,7 @@
       <p id="urgentPlace" class="place"></p>
       <div class="bigtime"><span id="urgentMinutes"></span> <small>min ahead</small></div>
       <p id="urgentDetour" class="detour"></p>
+      <p id="urgentStatus" class="urgent-status" role="status"></p>
       <div id="urgentFeatures" class="features"></div>
 
       <div class="why">

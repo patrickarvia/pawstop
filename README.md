@@ -1,12 +1,17 @@
-# Pawstop V2.1 prototype
+# Pawstop V2.1.1 prototype
 
 Pawstop is a dog-first road-trip stop intelligence concept.
+
+## What's new in V2.1.1
+
+- Urgent ETA now includes estimated route detour (`minutes + detour`) for window eligibility, ranking, fallback ordering, Fastest, and displayed timing. Detour remains visible separately.
+- Planned stops use Pawstop match minus a timing penalty: the first 15 minutes early or late are free, then each additional early minute costs 0.20 points and each late minute costs 0.75 points. Late stops receive a stronger penalty than early stops.
 
 ## What's new in V2.1
 
 - Cadence-aware, chronological route planning on the approximately 780-minute Jersey City → Chicago demo trip. Numeric `tripMinutes` represent elapsed trip time; the separate `minutes` value is a demo urgent-stop time ahead.
 - Break targets repeat at the selected cadence before arrival: 2.5 hours produces 150, 300, 450, 600, and 750 minutes.
-- Each target selects an unused stop within half a cadence, in chronological order. Selection combines preference match (70%) and timing fit (30%), so timing does not completely override quality. Missing candidates appear as explicit coverage gaps.
+- Each target selects an unused stop within half a cadence, in chronological order. V2.1 originally combined preference match (70%) and timing fit (30%); V2.1.1 uses the asymmetric timing penalty described above. Missing candidates appear as explicit coverage gaps.
 - Matching preserves large grass, low dog traffic, restrooms, minimal detours, fenced space, lighting, and avoiding dedicated dog-relief areas. Exceeding the selected max detour costs ten match points plus six per excess minute, even when minimal detours is not selected.
 - Life stage adds soft planning signals: puppies slightly favor lower expected dog traffic, adults are neutral, and seniors slightly favor lower detours. These are product preferences, not veterinary or medical advice.
 - Route cards show planned break targets, actual estimated timing, early/close/after timing (within 15 minutes counts as close), estimated detours, and Pawstop match.
@@ -16,7 +21,7 @@ Pawstop is a dog-first road-trip stop intelligence concept.
 
 ## Current prototype limitations
 
-The prototype uses a small curated Jersey City → Chicago corridor even if the origin and destination fields are edited. Route times, detours, dog traffic, grass condition, cleanliness, closures, and community observations are curated/demo data rather than live data. Urgent time-ahead estimates are a separate simulated snapshot, not GPS tracking or values derived from the full-route timeline; they include the demo approach to the stop, with detour displayed separately.
+The prototype uses a small curated Jersey City → Chicago corridor even if the origin and destination fields are edited. Route times, detours, dog traffic, grass condition, cleanliness, closures, and community observations are curated/demo data rather than live data. Urgent time-ahead estimates are a separate simulated snapshot, not GPS tracking or values derived from the full-route timeline; the total ETA adds the estimated route detour to the demo time ahead, with detour also displayed separately.
 
 Cadence targets do not include break duration, traffic, or time-zone adjustments. Sparse candidate coverage can leave gaps, and chronological selection is a heuristic rather than a globally optimized itinerary. Match percentages are preference scores, not probabilities or safety guarantees. Max detour is a strong scoring penalty rather than a hard exclusion. Verify pet access, hours, fees, and current conditions using the linked sources. Pawstop does not assess medical safety.
 

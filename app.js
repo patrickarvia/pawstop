@@ -50,6 +50,10 @@ function plannedTargets(){
   for(let t=cadenceMinutes;t<tripDuration;t+=cadenceMinutes) targets.push(t);
   return targets;
 }
+function plannedTimingPenalty(actualMinutes,targetMinutes){
+  const delta=actualMinutes-targetMinutes;
+  return Math.max(0,Math.abs(delta)-15)*(delta<0?0.20:0.75);
+}
 function planStops(){
   let lastTripMinute=-1;
   const used=new Set();
@@ -57,8 +61,8 @@ function planStops(){
   const radius=cadenceMinutes/2;
   return plannedTargets().map(target=>{
     const candidates=rankedStops().filter(s=>!used.has(s.id)&&s.tripMinutes>lastTripMinute&&Math.abs(s.tripMinutes-target)<=radius);
-    // Quality supplies 70% of the fit; timing supplies up to 30 points.
-    const fit=s=>s.match*0.7+30*(1-Math.abs(s.tripMinutes-target)/radius);
+    // Allow a 15-minute grace period; lateness costs more than an early break.
+    const fit=s=>s.match-plannedTimingPenalty(s.tripMinutes,target);
     candidates.sort((a,b)=>fit(b)-fit(a)||Math.abs(a.tripMinutes-target)-Math.abs(b.tripMinutes-target)||a.detour-b.detour);
     const stop=candidates[0];
     if(!stop) return {target,stop:null};
@@ -102,14 +106,15 @@ $("planBtn").onclick=()=>{
 };
 $("backBtn").onclick=()=>{$("route").classList.add("hidden");$("planner").classList.remove("hidden");scrollTo(0,0)};
 
+function urgentEta(s){return s.minutes+s.detour}
 function urgentRank(windowMins){
   const ranked=rankedStops();
-  const within=ranked.filter(s=>s.minutes<=windowMins);
+  const within=ranked.filter(s=>urgentEta(s)<=windowMins);
   const candidates=within.length?within:ranked;
   const weights=windowMins<=15?{quality:0.2,time:3,detour:3}:windowMins<=30?{quality:0.65,time:1,detour:1.5}:{quality:1,time:0.2,detour:0.5};
-  const fit=s=>weights.quality*s.match-weights.time*s.minutes-weights.detour*s.detour;
+  const fit=s=>weights.quality*s.match-weights.time*urgentEta(s)-weights.detour*s.detour;
   // If nothing is within the window, show the soonest option and label it honestly.
-  return candidates.sort((a,b)=>(within.length?0:a.minutes-b.minutes)||fit(b)-fit(a)||a.detour-b.detour);
+  return candidates.sort((a,b)=>(within.length?0:urgentEta(a)-urgentEta(b))||fit(b)-fit(a)||a.detour-b.detour);
 }
 function bestForWindow(windowMins){return urgentRank(windowMins)[0]}
 function renderUrgent(s){
@@ -119,10 +124,11 @@ function renderUrgent(s){
   $("urgentType").textContent=s.type.toUpperCase();
   $("urgentName").textContent=s.name;
   $("urgentPlace").textContent=s.place;
-  $("urgentMinutes").textContent=s.minutes;
+  $("urgentMinutes").textContent=urgentEta(s);
   $("urgentDetour").textContent=(s.detour?`+${s.detour} min`:"No")+" estimated route detour";
-  const within=s.minutes<=urgentWindow;
-  $("urgentStatus").textContent=within?`Within your ${urgentWindow}-minute window · demo estimate`:`Outside your ${urgentWindow}-minute window by ${s.minutes-urgentWindow} min · demo estimate`;
+  const eta=urgentEta(s);
+  const within=eta<=urgentWindow;
+  $("urgentStatus").textContent=`${eta} min to stop including detour · ${within?`within your ${urgentWindow}-minute window`:`outside your ${urgentWindow}-minute window by ${eta-urgentWindow} min`} · demo estimate`;
   $("urgentStatus").classList.toggle("warning",!within);
   $("urgentFeatures").innerHTML=s.tags.map(t=>`<span>${t}</span>`).join("");
   $("urgentWhy").textContent=reason(s);
@@ -147,7 +153,7 @@ document.querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{
   const rs=urgentRank(urgentWindow);
   let s;
   if(b.dataset.alt==="best") s=rs[0];
-  if(b.dataset.alt==="fastest") s=[...rs].sort((a,b)=>a.minutes-b.minutes||a.detour-b.detour)[0];
+  if(b.dataset.alt==="fastest") s=[...rs].sort((a,b)=>urgentEta(a)-urgentEta(b)||a.detour-b.detour)[0];
   if(b.dataset.alt==="grass") s=[...rs].sort((a,b)=>b.grass-a.grass||b.match-a.match)[0];
   if(b.dataset.alt==="restrooms") s=[...rs].sort((a,b)=>b.restrooms-a.restrooms||b.match-a.match)[0];
   renderUrgent(s||bestForWindow(urgentWindow));

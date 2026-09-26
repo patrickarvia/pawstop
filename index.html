@@ -13,7 +13,7 @@
   <section id="planner" class="screen">
     <header class="brandbar">
       <div class="brand"><span class="mark">P</span><span>PAWSTOP</span></div>
-      <span class="version">V2.1.1 PROTOTYPE</span>
+      <span class="version">V2.2 PHASE 1</span>
     </header>
 
     <p class="eyebrow">ROAD TRIPS, BUILT AROUND YOUR DOG</p>
@@ -51,10 +51,13 @@
         <button type="button" class="chip" data-pref="lighting">Good lighting</button>
       </div>
       <label class="check"><input id="avoidRelief" type="checkbox" checked> Avoid dedicated dog-relief areas when possible</label>
+      <p id="planStatus" class="meta" role="status" aria-live="polite"></p>
+      <p id="planError" class="urgent-status warning hidden" role="alert"></p>
       <button id="planBtn" class="primary">Build my Pawstop route →</button>
+      <div class="stop-actions"><button id="plannerDemo" type="button">Try urgent stop demo</button></div>
     </div>
 
-    <p class="fine">V2.1.1 uses a curated Jersey City → Chicago corridor to demonstrate Pawstop's matching engine. Drive times and current conditions are not live-routed.</p>
+    <p class="fine">Real driving routes and break targets. Stop discovery is coming next; no real stop recommendations yet.</p>
   </section>
 
   <section id="route" class="screen hidden">
@@ -65,8 +68,9 @@
 
     <p class="eyebrow">YOUR PAWSTOP ROUTE</p>
     <h2><span id="routeFrom"></span> <span class="muted">→</span> <span id="routeTo"></span></h2>
-    <p class="lede compact">Stops planned for <strong id="dogName"></strong> around your selected break cadence and preferences.</p>
+    <p class="lede compact">Break targets planned for <strong id="dogName"></strong> around your selected cadence. Stop locations are coming next.</p>
 
+    <p id="routeMetrics" class="meta"></p>
     <div class="trip-summary">
       <div><span>PROFILE</span><strong id="profile"></strong></div>
       <div><span>BREAK PLAN</span><strong id="breakPlan"></strong></div>
@@ -77,8 +81,8 @@
     <p id="routeLogic" class="route-logic"></p>
     <div id="stops"></div>
 
-    <button id="needStop" class="need">🐾 <span id="needText">Conan needs a stop</span></button>
-    <p class="fine">Pawstop matches observable stop characteristics to your preferences. It does not assess medical safety.</p>
+    <button id="needStop" class="need">🐾 <span id="needText">Try the urgent-stop demo</span></button>
+    <p class="fine">The urgent-stop demo uses a separate curated Jersey City → Chicago dataset, not this route or your location. Pawstop does not assess medical safety.</p>
   </section>
 
   <section id="urgent" class="screen hidden">
@@ -87,7 +91,8 @@
       <div class="brand small"><span class="mark">P</span><span>PAWSTOP</span></div>
     </div>
 
-    <p class="eyebrow">FIND A STOP AHEAD</p>
+    <p class="eyebrow">URGENT-STOP DEMO</p>
+    <p class="route-logic">Curated Jersey City → Chicago demo only. These stops and estimated times are not based on your planned route or live location.</p>
     <h2 id="urgentTitle">How soon does Conan need a break?</h2>
     <div class="time-pills">
       <button class="time-pill" data-window="15">Within 15 min</button>

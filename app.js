@@ -1,3 +1,4 @@
+// Curated data is used only by the separate urgent-stop demo.
 const stops=[
 {id:"hess",name:"Hess Recreation Area",type:"Recreation area",place:"Danville, PA",address:"843 Meadow Ln, Danville, PA 17821",tripMinutes:145,detour:6,minutes:26,grass:5,traffic:4,restrooms:5,fenced:1,lighting:3,relief:false,tags:["🌱 115-acre recreation area","🐕 Leashed dogs permitted","🚻 Year-round restrooms","🚗 Parking"],why:"Large public recreation area with fields and trails, while avoiding a concentrated highway pet-relief area.",confidence:"High",provenance:"Official MARC park page + official park rules",source:"https://montourrec.com/hess-fields/",caveat:"Dog traffic and current grass condition are not live-verified.",reports:{grass:"Good",traffic:"Low",clean:"Good"},verified:"Prototype demo observation"},
 {id:"brandy",name:"Brandy Springs Park",type:"Community park",place:"Mercer, PA",address:"197 William T Wardle Dr, Mercer, PA 16137",tripMinutes:295,detour:7,minutes:31,grass:4,traffic:2,restrooms:3,fenced:4,lighting:3,relief:true,tags:["🌱 Community park","🚗 Parking","🐕 Dog facilities on site","🧺 Recreation space"],why:"A substantial community park near the corridor. A dedicated dog area lowers the match when you prefer to avoid concentrated dog-relief spaces.",confidence:"Medium",provenance:"Official park site + current place data",source:"https://www.brandyspringspark.com/",caveat:"Field verification of pet access outside the dedicated dog park is still needed.",reports:{grass:"Good",traffic:"Medium",clean:"Unknown"},verified:"Demo data only"},
@@ -9,8 +10,9 @@ const stops=[
 
 const $=id=>document.getElementById(id);
 let preferences={grass:true,traffic:true,restrooms:true,detour:true,fenced:false,lighting:false};
-const tripDuration=780;
+let routePlan=null;
 let lifeStage="Puppy", cadenceMinutes=150;
+let urgentOrigin="route";
 let avoidRelief=true, maxDetour=10, dogName="Conan", current=null, urgentWindow=30;
 
 document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{b.classList.toggle("active");preferences[b.dataset.pref]=b.classList.contains("active")});
@@ -44,31 +46,11 @@ function reason(s){
   if(avoidRelief&&!s.relief) reasons.push("not a dedicated highway dog-relief area");
   return reasons.length?`It matches your priorities for ${reasons.slice(0,-1).join(", ")}${reasons.length>1?" and ":""}${reasons.slice(-1)}.`:s.why;
 }
-function formatMinutes(minutes){return `${Math.floor(minutes/60)}h ${minutes%60}m`}
-function plannedTargets(){
-  const targets=[];
-  for(let t=cadenceMinutes;t<tripDuration;t+=cadenceMinutes) targets.push(t);
-  return targets;
-}
+function formatMinutes(minutes){const rounded=Math.round(minutes);return `${Math.floor(rounded/60)}h ${rounded%60}m`}
+function plannedTargets(){return routePlan.breakTargetsMinutes}
 function plannedTimingPenalty(actualMinutes,targetMinutes){
   const delta=actualMinutes-targetMinutes;
   return Math.max(0,Math.abs(delta)-15)*(delta<0?0.20:0.75);
-}
-function planStops(){
-  let lastTripMinute=-1;
-  const used=new Set();
-  // Limit candidates to half a cadence: sparse demo coverage is shown as a gap.
-  const radius=cadenceMinutes/2;
-  return plannedTargets().map(target=>{
-    const candidates=rankedStops().filter(s=>!used.has(s.id)&&s.tripMinutes>lastTripMinute&&Math.abs(s.tripMinutes-target)<=radius);
-    // Allow a 15-minute grace period; lateness costs more than an early break.
-    const fit=s=>s.match-plannedTimingPenalty(s.tripMinutes,target);
-    candidates.sort((a,b)=>fit(b)-fit(a)||Math.abs(a.tripMinutes-target)-Math.abs(b.tripMinutes-target)||a.detour-b.detour);
-    const stop=candidates[0];
-    if(!stop) return {target,stop:null};
-    used.add(stop.id);lastTripMinute=stop.tripMinutes;
-    return {target,stop};
-  });
 }
 function timingLabel(actual,target){
   const delta=actual-target;
@@ -76,33 +58,63 @@ function timingLabel(actual,target){
   return delta<0?`${-delta} min early`:`${delta} min after planned break`;
 }
 function renderStops(){
-  $("routeLogic").textContent=`Break targets every ${formatMinutes(cadenceMinutes)} on the approximately 13-hour demo trip. Nearby stops balance timing with your preferences; life stage adds a small planning preference. Gaps indicate limited demo coverage.`;
-  $("stops").innerHTML=planStops().map(({target,stop:s},i)=>s?`<article class="stop">
+  const route=routePlan.route;
+  $("routeMetrics").textContent=`${formatMinutes(route.durationMinutes)} driving · ${(route.distanceMeters/1609.344).toLocaleString(undefined,{maximumFractionDigits:0})} miles · Traffic not included`;
+  $("routeLogic").textContent=`Break targets every ${formatMinutes(cadenceMinutes)} using your real driving route. Real stop discovery is the next V2.2 phase; preferences will affect recommendations when stop matching is available.`;
+  $("stops").innerHTML=plannedTargets().map((target,i)=>`<article class="stop">
     <div class="rec-label">PLANNED BREAK ${i+1} · ${formatMinutes(target)}</div>
-    <div class="stop-head"><div><h3>${s.name}</h3><p class="place">${s.place}</p></div><span class="match">${s.match}% PAWSTOP MATCH</span></div>
-    <p class="meta">Actual stop: ~${formatMinutes(s.tripMinutes)} into trip · ${timingLabel(s.tripMinutes,target)}<br>+${s.detour} min estimated detour${s.detour>maxDetour?" · Above selected detour limit":""}</p>
-    <div class="tags">${s.tags.map(t=>`<span>${t}</span>`).join("")}</div>
-    <div class="stop-actions"><button onclick="showWhy('${s.id}')">Why this stop?</button><button onclick="window.open('${navUrl(s)}','_blank')">Navigate ↗</button></div>
-    <div id="why-${s.id}" class="data-note hidden">${reason(s)}<br><br>${prov(s)}</div>
-  </article>`:`<article class="stop"><h3>Planned break ${i+1} · ${formatMinutes(target)}</h3><p class="meta">No unused demo stop near this target. Plan an additional stop for this gap.</p></article>`).join("");
+    <h3>Stop location not yet available</h3>
+    <p class="meta">This is a planned break target, not a recommended place. Real stop discovery is the next V2.2 phase. Choose a suitable stop for this gap before traveling.</p>
+  </article>`).join("")||'<article class="stop"><h3>No planned breaks before arrival</h3><p class="meta">This route is within your selected break cadence. Stop whenever your dog needs a break.</p></article>';
 }
-window.showWhy=id=>$("why-"+id).classList.toggle("hidden");
 
-$("planBtn").onclick=()=>{
-  dogName=$("dog").value.trim()||"Your dog";
-  avoidRelief=$("avoidRelief").checked;
-  maxDetour=+$("detour").value;
-  lifeStage=$("age").value;
-  cadenceMinutes=+$("break").value*60;
-  $("routeFrom").textContent=$("from").value;
-  $("routeTo").textContent=$("to").value;
-  $("dogName").textContent=dogName;
-  $("profile").textContent=$("age").value;
-  $("breakPlan").textContent="Every "+$("break").selectedOptions[0].text;
-  $("maxDetour").textContent=maxDetour+" min";
-  $("needText").textContent=dogName+" needs a stop";
-  renderStops();
-  $("planner").classList.add("hidden");$("route").classList.remove("hidden");scrollTo(0,0)
+const routeErrors={
+  INVALID_INPUT:"Please check your origin, destination, and dog profile, then try again.",
+  ROUTE_NOT_FOUND:"We couldn't find a drivable route between those locations. Try more specific addresses.",
+  PROVIDER_ERROR:"We couldn't load your route right now. Please try again shortly.",
+  RATE_LIMITED:"Route planning is busy right now. Please try again shortly."
+};
+$("planBtn").onclick=async()=>{
+  if($("planBtn").disabled) return;
+  const request={
+    origin:$("from").value.trim(),destination:$("to").value.trim(),
+    dogName:$("dog").value.trim()||"Your dog",lifeStage:$("age").value.toLowerCase(),
+    breakCadenceMinutes:Number($("break").value)*60,maxDetourMinutes:Number($("detour").value),
+    preferences:{largeGrass:preferences.grass,lowDogTraffic:preferences.traffic,restrooms:preferences.restrooms,
+      minimalDetours:preferences.detour,fencedSpace:preferences.fenced,goodLighting:preferences.lighting,
+      avoidDedicatedReliefAreas:$("avoidRelief").checked}
+  };
+  $("planBtn").disabled=true;
+  $("planBtn").textContent="Building your route…";
+  $("planner").setAttribute("aria-busy","true");
+  $("planError").textContent="";
+  $("planError").classList.add("hidden");
+  $("planStatus").textContent="Finding your driving route…";
+  try{
+    const response=await fetch("/api/plan-route",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(request),signal:AbortSignal.timeout(20000)});
+    const data=await response.json();
+    if(!response.ok) throw new Error(Object.hasOwn(routeErrors,data?.error?.code)?data.error.code:"PROVIDER_ERROR");
+    if(!data?.route||!Number.isFinite(data.route.durationMinutes)||data.route.durationMinutes<=0
+      ||!Number.isFinite(data.route.distanceMeters)||data.route.distanceMeters<=0
+      ||!Array.isArray(data.breakTargetsMinutes)||!data.breakTargetsMinutes.every((t,i,all)=>Number.isFinite(t)&&t>0&&t<data.route.durationMinutes&&(i===0||t>all[i-1]))) throw new Error("PROVIDER_ERROR");
+    routePlan=data;
+    dogName=request.dogName;avoidRelief=request.preferences.avoidDedicatedReliefAreas;
+    maxDetour=request.maxDetourMinutes;lifeStage=request.lifeStage[0].toUpperCase()+request.lifeStage.slice(1);
+    cadenceMinutes=request.breakCadenceMinutes;
+    $("routeFrom").textContent=request.origin;$("routeTo").textContent=request.destination;
+    $("dogName").textContent=dogName;$("profile").textContent=lifeStage;
+    $("breakPlan").textContent="Every "+formatMinutes(cadenceMinutes);
+    $("maxDetour").textContent=maxDetour+" min";
+    $("needText").textContent="Try the urgent-stop demo";
+    renderStops();
+    $("planner").classList.add("hidden");$("route").classList.remove("hidden");scrollTo(0,0);
+  }catch(error){
+    $("planError").textContent=Object.hasOwn(routeErrors,error.message)?routeErrors[error.message]:routeErrors.PROVIDER_ERROR;
+    $("planError").classList.remove("hidden");
+  }finally{
+    $("planBtn").disabled=false;$("planBtn").textContent="Build my Pawstop route →";
+    $("planner").setAttribute("aria-busy","false");$("planStatus").textContent="";
+  }
 };
 $("backBtn").onclick=()=>{$("route").classList.add("hidden");$("planner").classList.remove("hidden");scrollTo(0,0)};
 
@@ -119,7 +131,7 @@ function urgentRank(windowMins){
 function bestForWindow(windowMins){return urgentRank(windowMins)[0]}
 function renderUrgent(s){
   current=s;
-  $("urgentTitle").textContent=`Best stop ahead for ${dogName}`;
+  $("urgentTitle").textContent=`Demo stop ahead for ${dogName}`;
   $("urgentMatch").textContent=s.match+"% MATCH";
   $("urgentType").textContent=s.type.toUpperCase();
   $("urgentName").textContent=s.name;
@@ -140,13 +152,23 @@ function renderUrgent(s){
   $("urgentConfidence").innerHTML=prov(s);
   $("urgentCaveat").textContent=s.caveat;
 }
-$("needStop").onclick=()=>{
+function openUrgentDemo(origin){
+  // Avoid switching screens while the existing route request is in flight.
+  if(origin==="planner"&&$("planBtn").disabled) return;
+  dogName=$("dog").value.trim()||"Your dog";
+  lifeStage=$("age").value;
+  maxDetour=Number($("detour").value);
+  avoidRelief=$("avoidRelief").checked;
+  document.querySelectorAll(".chip").forEach(b=>{preferences[b.dataset.pref]=b.classList.contains("active")});
+  urgentOrigin=origin;
   urgentWindow=30;
   document.querySelectorAll(".time-pill").forEach(b=>b.classList.toggle("active",b.dataset.window==="30"));
   renderUrgent(bestForWindow(30));
-  $("route").classList.add("hidden");$("urgent").classList.remove("hidden");scrollTo(0,0)
-};
-$("urgentBack").onclick=()=>{$("urgent").classList.add("hidden");$("route").classList.remove("hidden");scrollTo(0,0)};
+  $(origin).classList.add("hidden");$("urgent").classList.remove("hidden");scrollTo(0,0)
+}
+$("plannerDemo").onclick=()=>openUrgentDemo("planner");
+$("needStop").onclick=()=>openUrgentDemo("route");
+$("urgentBack").onclick=()=>{$("urgent").classList.add("hidden");$(urgentOrigin).classList.remove("hidden");scrollTo(0,0)};
 $("navBtn").onclick=()=>window.open(navUrl(current),"_blank");
 
 document.querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{

@@ -6,9 +6,16 @@ const route = seconds => ({duration:`${seconds}s`,distanceMeters:1200000,polylin
 async function invoke(body=input(), response={routes:[route(46800)]}, status=200, options={}) {
   const oldFetch=global.fetch, oldKey=process.env.GOOGLE_MAPS_API_KEY;
   let called=false, sent;
+  const searches=[];
   if(options.missingKey) delete process.env.GOOGLE_MAPS_API_KEY;
   else process.env.GOOGLE_MAPS_API_KEY='test-only-placeholder';
   global.fetch=async(url,init)=>{
+    if(url==='https://places.googleapis.com/v1/places:searchText'){
+      searches.push(JSON.parse(init.body));
+      if(options.placesReject) throw new Error('private provider diagnostic');
+      const status=options.placesStatus||200;
+      return {ok:status===200,status,json:async()=>options.placesBody??{places:[]}};
+    }
     called=true;sent={url,...init};
     if(options.reject) throw new Error('private provider diagnostic');
     return {ok:status>=200&&status<300,status,json:async()=>{if(options.invalidJson) throw new Error('private provider body');return response}};
@@ -18,7 +25,7 @@ async function invoke(body=input(), response={routes:[route(46800)]}, status=200
   finally {global.fetch=oldFetch;if(oldKey===undefined) delete process.env.GOOGLE_MAPS_API_KEY;else process.env.GOOGLE_MAPS_API_KEY=oldKey;}
   assert.ok(!JSON.stringify(res.body).includes('test-only-placeholder'));
   assert.ok(!JSON.stringify(res.body).includes('private provider'));
-  return {...res,called,sent};
+  return {...res,called,sent,searches};
 }
 test('normalizes route, targets and Phase 1 gaps; sends only route inputs',async()=>{
   const r=await invoke();assert.equal(r.statusCode,200);
@@ -45,4 +52,24 @@ test('sanitizes missing credentials, provider failures, invalid JSON and unusabl
   for(const status of [400,403,500]) assert.equal((await invoke(input(),{error:'private provider diagnostic'},status)).body.error.code,'PROVIDER_ERROR');
   assert.equal((await invoke(input(),{},429)).body.error.code,'RATE_LIMITED');
   for(const response of [{},{routes:[]}]) assert.equal((await invoke(input(),response)).body.error.code,'ROUTE_NOT_FOUND');
+});
+
+test('discovery uses the computed polyline without exposing candidates or diagnostics',async()=>{
+  const r=await invoke(input(),{routes:[{...route(46800),polyline:{encodedPolyline:'new-route'}}]},200,
+    {placesBody:{places:[{id:'candidate',displayName:{text:'Private candidate'},location:{latitude:40,longitude:-74}}]}});
+  assert.equal(r.searches.length,4);
+  assert.deepEqual(r.searches.map(s=>s.textQuery),['park','recreation area','picnic area','rest area']);
+  assert.ok(r.searches.every(s=>s.searchAlongRouteParameters.polyline.encodedPolyline==='new-route'));
+  assert.deepEqual(Object.keys(r.body),['route','breakTargetsMinutes','recommendations']);
+  assert.ok(r.body.recommendations.every(r=>r.stop===null));
+  assert.ok(!JSON.stringify(r.body).includes('Private candidate'));
+});
+test('Places failures are sanitized; zero-target routes skip discovery',async()=>{
+  for(const options of [{placesStatus:403},{placesReject:true},{placesBody:{places:null}},{placesBody:{error:'private provider diagnostic'}}]){
+    const r=await invoke(input(),undefined,200,options);assert.equal(r.statusCode,502);assert.equal(r.body.error.code,'PROVIDER_ERROR');
+  }
+  const limited=await invoke(input(),undefined,200,{placesStatus:429});assert.equal(limited.statusCode,429);assert.equal(limited.body.error.code,'RATE_LIMITED');
+  const short=await invoke(input(),{routes:[route(1200)]},200,{placesStatus:403});
+  assert.equal(short.statusCode,200);assert.deepEqual(short.searches,[]);assert.deepEqual(short.body.recommendations,[]);
+  const empty=await invoke(input(),undefined,200,{placesBody:{}});assert.equal(empty.statusCode,200);assert.ok(empty.body.recommendations.every(r=>r.stop===null));
 });

@@ -73,3 +73,41 @@ test('Places failures are sanitized; zero-target routes skip discovery',async()=
   assert.equal(short.statusCode,200);assert.deepEqual(short.searches,[]);assert.deepEqual(short.body.recommendations,[]);
   const empty=await invoke(input(),undefined,200,{placesBody:{}});assert.equal(empty.statusCode,200);assert.ok(empty.body.recommendations.every(r=>r.stop===null));
 });
+
+async function captureDiscoveryLog(environment, run) {
+  const oldEnvironment=process.env.VERCEL_ENV, oldLog=console.log;
+  const logs=[];
+  if(environment===undefined) delete process.env.VERCEL_ENV;
+  else process.env.VERCEL_ENV=environment;
+  console.log=(...args)=>logs.push(args);
+  try { await run(logs); }
+  finally {
+    console.log=oldLog;
+    if(oldEnvironment===undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV=oldEnvironment;
+  }
+}
+test('discovery logs exactly one counts-only line outside production without changing responses',async()=>{
+  const options={placesBody:{places:[{id:'private-id',displayName:{text:'Private name'},formattedAddress:'Private address',location:{latitude:40,longitude:-74}},null]}};
+  let productionBody;
+  await captureDiscoveryLog('production',async logs=>{
+    const result=await invoke(input(),undefined,200,options);
+    assert.equal(result.statusCode,200);assert.equal(result.searches.length,4);
+    assert.deepEqual(logs,[]);productionBody=result.body;
+  });
+  for(const environment of ['preview','development',undefined]){
+    await captureDiscoveryLog(environment,async logs=>{
+      const result=await invoke(input(),undefined,200,options);
+      assert.deepEqual(result.body,productionBody);
+      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4']]);
+    });
+  }
+});
+test('zero-target routes and failed discovery emit no discovery log',async()=>{
+  await captureDiscoveryLog('preview',async logs=>{
+    const short=await invoke(input(),{routes:[route(1200)]});
+    assert.equal(short.statusCode,200);assert.deepEqual(short.searches,[]);assert.deepEqual(logs,[]);
+    const failed=await invoke(input(),undefined,200,{placesReject:true});
+    assert.equal(failed.statusCode,502);assert.deepEqual(logs,[]);
+  });
+});

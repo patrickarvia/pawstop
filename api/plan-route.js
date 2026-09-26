@@ -84,7 +84,12 @@ module.exports = async function handler(req, res) {
     const breakTargetsMinutes = plannedTargets(route.durationMinutes, body.breakCadenceMinutes);
     // Phase 2A discovers candidates internally; Phase 2B must validate route metrics
     // before any candidate can populate a recommendation. Short routes need no discovery.
-    if (breakTargetsMinutes.length) await discoverCandidates(route.encodedPolyline, { signal });
+    if (breakTargetsMinutes.length) {
+      const { diagnostics } = await discoverCandidates(route.encodedPolyline, { signal });
+      if (process.env.VERCEL_ENV !== 'production') {
+        console.log(`Phase2A discovery: received=${diagnostics.receivedCount} candidates=${diagnostics.candidateCount} duplicates=${diagnostics.duplicateCount} rejected=${diagnostics.rejectedCount}`);
+      }
+    }
     return res.status(200).json({
       route,
       breakTargetsMinutes,

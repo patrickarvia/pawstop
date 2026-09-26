@@ -1,34 +1,43 @@
-# Pawstop V2.1.1 prototype
+# Pawstop V2.2 Phase 1
 
-Pawstop is a dog-first road-trip stop intelligence concept.
+Pawstop is a dog-first road-trip stop planning prototype built with plain HTML, CSS, and JavaScript. Phase 1 replaces the fixed route duration with a real Google driving route and cadence-based break targets. Architecture: [V2.2 API contract](docs/v2.2-api-contract.md).
 
-## What's new in V2.1.1
+## Current behavior
 
-- Urgent ETA now includes estimated route detour (`minutes + detour`) for window eligibility, ranking, fallback ordering, Fastest, and displayed timing. Detour remains visible separately.
-- Planned stops use Pawstop match minus a timing penalty: the first 15 minutes early or late are free, then each additional early minute costs 0.20 points and each late minute costs 0.75 points. Late stops receive a stronger penalty than early stops.
+“Build my Pawstop route” sends the trip and dog preferences to `POST /api/plan-route`. The server validates the request, calls Google Routes `computeRoutes`, and returns normalized duration, distance, polyline, provenance, break targets, and one `stop: null` recommendation per target. The browser shows the real duration/distance and explicit coverage-gap cards. A route at or below the cadence has no planned breaks before arrival.
 
-## What's new in V2.1
+Real stop discovery is not implemented yet: it is Phase 2. There are no real-route stop recommendations, match scores, or stop navigation links in Phase 1. Preferences are accepted for the future matching pipeline but do not yet affect planned stop selection. Break targets exclude dwell time and cumulative detours.
 
-- Cadence-aware, chronological route planning on the approximately 780-minute Jersey City → Chicago demo trip. Numeric `tripMinutes` represent elapsed trip time; the separate `minutes` value is a demo urgent-stop time ahead.
-- Break targets repeat at the selected cadence before arrival: 2.5 hours produces 150, 300, 450, 600, and 750 minutes.
-- Each target selects an unused stop within half a cadence, in chronological order. V2.1 originally combined preference match (70%) and timing fit (30%); V2.1.1 uses the asymmetric timing penalty described above. Missing candidates appear as explicit coverage gaps.
-- Matching preserves large grass, low dog traffic, restrooms, minimal detours, fenced space, lighting, and avoiding dedicated dog-relief areas. Exceeding the selected max detour costs ten match points plus six per excess minute, even when minimal detours is not selected.
-- Life stage adds soft planning signals: puppies slightly favor lower expected dog traffic, adults are neutral, and seniors slightly favor lower detours. These are product preferences, not veterinary or medical advice.
-- Route cards show planned break targets, actual estimated timing, early/close/after timing (within 15 minutes counts as close), estimated detours, and Pawstop match.
-- Urgency-specific ranking: 15 minutes strongly favors time ahead and detour; 30 minutes balances urgency and fit; 60 minutes favors overall quality. In-window stops are considered first. If none qualify, the soonest option is shown with an outside-window warning.
-- Best match uses the selected urgency ranking. Fastest, Largest grass, and Restrooms compare eligible alternatives; when none are in-window, alternatives compare the demo pool and retain the warning.
-- Google Maps navigation, provenance/source links, confidence indicators, and demo Pawstop community reports remain available in the mobile-first interface.
+Phase 1 explicitly uses `DRIVE` and `TRAFFIC_UNAWARE`, returning `trafficAware: false`. This is a temporary implementation choice; traffic-aware versus traffic-unaware routing remains an open V2.2 decision. Displayed duration does not include traffic.
 
-## Current prototype limitations
+The endpoint accepts the required fields in contract section 3. Operational validation bounds are 500 characters for each location, 100 for dog name, cadence from 1 to 1,440 minutes, and max detour from 0 to 1,440 minutes. Provider durations must be positive and at most 30 days. Invalid requests return `INVALID_INPUT`; no route returns `ROUTE_NOT_FOUND`; provider failures return `PROVIDER_ERROR`; provider throttling returns `RATE_LIMITED`. Phase 1 intentionally returns planned gaps rather than `NO_STOP_CANDIDATES`, because discovery has not run.
 
-The prototype uses a small curated Jersey City → Chicago corridor even if the origin and destination fields are edited. Route times, detours, dog traffic, grass condition, cleanliness, closures, and community observations are curated/demo data rather than live data. Urgent time-ahead estimates are a separate simulated snapshot, not GPS tracking or values derived from the full-route timeline; the total ETA adds the estimated route detour to the demo time ahead, with detour also displayed separately.
+## Vercel deployment
 
-Cadence targets do not include break duration, traffic, or time-zone adjustments. Sparse candidate coverage can leave gaps, and chronological selection is a heuristic rather than a globally optimized itinerary. Match percentages are preference scores, not probabilities or safety guarantees. Max detour is a strong scoring penalty rather than a hard exclusion. Verify pet access, hours, fees, and current conditions using the linked sources. Pawstop does not assess medical safety.
+Use the repository root with Vercel's **Other** framework preset, no build command, and the root static output. Vercel serves `index.html`, `style.css`, and `app.js`, and runs `api/plan-route.js` as a Node.js function at `/api/plan-route`. Use a supported Node.js runtime with built-in `fetch` (Node 22 or later). No framework or runtime dependencies are required. See [Vercel's Node.js function documentation](https://vercel.com/docs/functions/runtimes/node-js).
+
+Configure `GOOGLE_MAPS_API_KEY` as a server-side environment variable in the Vercel project for both Preview and Production. The associated Google Cloud project must have billing configured and the **Routes API** enabled, with the key permitted to call that API. The function reads the key only from `process.env.GOOGLE_MAPS_API_KEY`. Never put it in client JavaScript, responses, logs, or committed files. Local `.env` files and `.vercel` configuration are ignored by Git. Places API is not called in Phase 1. See Google's [computeRoutes reference](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes).
+
+A static-only local server cannot execute `/api/plan-route`; use Vercel's function environment to exercise the full application. A future branch push can produce a Preview deployment for the first live provider test. This implementation does not itself push, deploy, or change project environment variables.
+
+## Separate urgent-stop demo
+
+The urgent-stop prototype remains explicitly labeled as a curated Jersey City → Chicago demo. Its six stops and simulated time-ahead values are unrelated to the real planned route or device location. The route screen's “Try the urgent-stop demo” button opens it.
+
+The demo retains preference matching, Puppy / Adult / Senior soft signals, and the max-detour penalty of ten points plus six per excess minute. Urgent ETA includes simulated time ahead plus detour. The 15-, 30-, and 60-minute windows, eligible alternatives, outside-window warning, source disclosures, demo reports, and Google Maps links remain available. These are demonstration scores and observations, not live conditions or medical guidance. Live urgent geolocation belongs to V2.2.1.
+
+The V2.1.1 timing helpers remain for future real-stop planning: ±15 minutes has no penalty, then early minutes cost 0.20 points each and late minutes cost 0.75. They are not used to invent Phase 1 recommendations.
 
 ## Validation
 
-Run `node --check app.js` for a JavaScript syntax check. Exercise the planner with each cadence, life stage, and detour setting; check chronological cards and gaps; test all urgency windows, alternatives, navigation handoffs, and source disclosures.
+With Node.js available:
 
-## Path toward the app
+```sh
+node --check app.js
+node --check api/plan-route.js
+node --test tests/*.test.js
+```
 
-Replace curated route and stop inputs with live routing and place discovery while preserving cadence-aware planning, transparent matching, and explicit data provenance.
+Tests use built-in Node tools, mocked provider responses, and a minimal DOM event-handler harness. They make no live Google calls and need no real credentials. Coverage includes 780 minutes / 150-minute cadence → `[150,300,450,600,750]`, short routes, arrival boundaries, request validation, first valid route normalization, sanitized failures, planned gaps, loading/error recovery, and urgent demo controls/navigation.
+
+On Vercel Preview, verify actual route resolution and plausible duration/distance for Jersey City → Chicago, Jersey City → Nashville, New York → Boston, and a short route such as Jersey City → Newark. Verify function deployment, environment/key permissions, real error states, mobile layout, and that no credentials or raw provider errors appear in browser responses. Confirm the urgent demo remains clearly separate and planned routes never display the six curated stops.

@@ -80,3 +80,5 @@ input:focus,select:focus{border-color:#91a596;box-shadow:0 0 0 3px rgba(145,165,
 .urgent-status{font-size:12px;line-height:1.5;color:var(--ink);background:var(--sage);padding:10px 12px;border-radius:10px}
 .urgent-status.warning{color:#814339;background:#f8e9e4;border:1px solid #dfb9af}
 @media(max-width:410px){.stop-head{flex-wrap:wrap}.match{align-self:flex-start}}
+
+.primary:disabled{opacity:.65;cursor:wait}

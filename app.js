@@ -12,6 +12,7 @@ const $=id=>document.getElementById(id);
 let preferences={grass:true,traffic:true,restrooms:true,detour:true,fenced:false,lighting:false};
 let routePlan=null;
 let lifeStage="Puppy", cadenceMinutes=150;
+let urgentOrigin="route";
 let avoidRelief=true, maxDetour=10, dogName="Conan", current=null, urgentWindow=30;
 
 document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{b.classList.toggle("active");preferences[b.dataset.pref]=b.classList.contains("active")});
@@ -151,13 +152,23 @@ function renderUrgent(s){
   $("urgentConfidence").innerHTML=prov(s);
   $("urgentCaveat").textContent=s.caveat;
 }
-$("needStop").onclick=()=>{
+function openUrgentDemo(origin){
+  // Avoid switching screens while the existing route request is in flight.
+  if(origin==="planner"&&$("planBtn").disabled) return;
+  dogName=$("dog").value.trim()||"Your dog";
+  lifeStage=$("age").value;
+  maxDetour=Number($("detour").value);
+  avoidRelief=$("avoidRelief").checked;
+  document.querySelectorAll(".chip").forEach(b=>{preferences[b.dataset.pref]=b.classList.contains("active")});
+  urgentOrigin=origin;
   urgentWindow=30;
   document.querySelectorAll(".time-pill").forEach(b=>b.classList.toggle("active",b.dataset.window==="30"));
   renderUrgent(bestForWindow(30));
-  $("route").classList.add("hidden");$("urgent").classList.remove("hidden");scrollTo(0,0)
-};
-$("urgentBack").onclick=()=>{$("urgent").classList.add("hidden");$("route").classList.remove("hidden");scrollTo(0,0)};
+  $(origin).classList.add("hidden");$("urgent").classList.remove("hidden");scrollTo(0,0)
+}
+$("plannerDemo").onclick=()=>openUrgentDemo("planner");
+$("needStop").onclick=()=>openUrgentDemo("route");
+$("urgentBack").onclick=()=>{$("urgent").classList.add("hidden");$(urgentOrigin).classList.remove("hidden");scrollTo(0,0)};
 $("navBtn").onclick=()=>window.open(navUrl(current),"_blank");
 
 document.querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{

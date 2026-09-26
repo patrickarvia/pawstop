@@ -1,3 +1,5 @@
+const { discoverCandidates, DiscoveryError } = require('../lib/google-discovery');
+
 const PREFERENCES = ['largeGrass', 'lowDogTraffic', 'restrooms', 'minimalDetours', 'fencedSpace', 'goodLighting', 'avoidDedicatedReliefAreas'];
 const MESSAGES = {
   INVALID_INPUT: 'Please check your trip details and try again.',
@@ -51,6 +53,8 @@ module.exports = async function handler(req, res) {
   if (typeof key !== 'string' || !key.trim()) return error(502, 'PROVIDER_ERROR');
 
   try {
+    // Share the existing request budget across routing and discovery.
+    const signal = AbortSignal.timeout(15000);
     const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
       method: 'POST',
       headers: {
@@ -65,7 +69,7 @@ module.exports = async function handler(req, res) {
         // Temporary Phase 1 choice; the final V2.2 traffic mode remains open.
         routingPreference: 'TRAFFIC_UNAWARE'
       }),
-      signal: AbortSignal.timeout(15000)
+      signal
     });
     if (response.status === 429) return error(429, 'RATE_LIMITED');
     if (!response.ok) return error(502, 'PROVIDER_ERROR');
@@ -78,12 +82,21 @@ module.exports = async function handler(req, res) {
     const route = data.routes.map(normalizeRoute).find(Boolean);
     if (!route) return error(502, 'PROVIDER_ERROR');
     const breakTargetsMinutes = plannedTargets(route.durationMinutes, body.breakCadenceMinutes);
+    // Phase 2A discovers candidates internally; Phase 2B must validate route metrics
+    // before any candidate can populate a recommendation. Short routes need no discovery.
+    if (breakTargetsMinutes.length) {
+      const { diagnostics } = await discoverCandidates(route.encodedPolyline, { signal });
+      if (process.env.VERCEL_ENV !== 'production') {
+        console.log(`Phase2A discovery: received=${diagnostics.receivedCount} candidates=${diagnostics.candidateCount} duplicates=${diagnostics.duplicateCount} rejected=${diagnostics.rejectedCount}`);
+      }
+    }
     return res.status(200).json({
       route,
       breakTargetsMinutes,
       recommendations: breakTargetsMinutes.map(targetMinutes => ({ targetMinutes, stop: null }))
     });
-  } catch {
+  } catch (failure) {
+    if (failure instanceof DiscoveryError && failure.code === 'RATE_LIMITED') return error(429, 'RATE_LIMITED');
     // Never return or log provider bodies, exception messages, or credentials.
     return error(502, 'PROVIDER_ERROR');
   }

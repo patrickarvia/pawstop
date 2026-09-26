@@ -50,7 +50,9 @@ input:focus,select:focus{border-color:#91a596;box-shadow:0 0 0 3px rgba(145,165,
 .stop-actions{display:flex;gap:8px;margin-top:13px}
 .stop-actions button{background:#fff}
 .data-note{margin-top:10px;padding:12px;background:#f4f2eb;border-radius:11px;font-size:11px;line-height:1.5;color:#617269}
-.need{position:sticky;bottom:18px;margin-top:20px;box-shadow:0 10px 30px rgba(24,52,43,.22)}
+/* Reserve scroll clearance before the sticky route CTA, including mobile safe areas. */
+#route #stops{padding-bottom:calc(80px + env(safe-area-inset-bottom, 0px))}
+.need{position:sticky;bottom:max(18px, env(safe-area-inset-bottom, 0px));margin-top:20px;box-shadow:0 10px 30px rgba(24,52,43,.22)}
 .time-pills{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:18px 0}
 .time-pill{padding:11px 7px}
 .urgent-head{display:flex;justify-content:space-between;align-items:center}

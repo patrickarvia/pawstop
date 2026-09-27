@@ -70,6 +70,7 @@ function renderStops(){
 
 const routeErrors={
   INVALID_INPUT:"Please check your origin, destination, and dog profile, then try again.",
+  NO_STOP_CANDIDATES:"We couldn't find a suitable Pawstop along this route.",
   ROUTE_NOT_FOUND:"We couldn't find a drivable route between those locations. Try more specific addresses.",
   PROVIDER_ERROR:"We couldn't load your route right now. Please try again shortly.",
   RATE_LIMITED:"Route planning is busy right now. Please try again shortly."

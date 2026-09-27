@@ -63,3 +63,10 @@ test('planner demo remains accessible after route failure without retrying the p
   assert.equal(requests,1);assert.equal(b.element('urgent').classList.contains('hidden'),false);
   b.element('urgentBack').onclick();assert.equal(b.element('planner').classList.contains('hidden'),false);
 });
+
+test('NO_STOP_CANDIDATES uses the friendly allowlisted message and allows retry', async () => {
+  const b = browser(async () => ({ ok: false, json: async () => ({ error: { code: 'NO_STOP_CANDIDATES', message: 'private provider text' } }) }));
+  await b.element('planBtn').onclick();
+  assert.equal(b.element('planError').textContent, "We couldn't find a suitable Pawstop along this route.");
+  assert.equal(b.element('planBtn').disabled, false);
+});

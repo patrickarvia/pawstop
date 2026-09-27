@@ -82,12 +82,16 @@ module.exports = async function handler(req, res) {
     const route = data.routes.map(normalizeRoute).find(Boolean);
     if (!route) return error(502, 'PROVIDER_ERROR');
     const breakTargetsMinutes = plannedTargets(route.durationMinutes, body.breakCadenceMinutes);
-    // Phase 2A discovers candidates internally; Phase 2B must validate route metrics
-    // before any candidate can populate a recommendation. Short routes need no discovery.
+    // Candidate metrics remain internal until the later scoring/planning phase.
+    // Short routes need no discovery.
     if (breakTargetsMinutes.length) {
-      const { diagnostics } = await discoverCandidates(route.encodedPolyline, { signal });
-      if (process.env.VERCEL_ENV !== 'production') {
+      const { diagnostics } = await discoverCandidates(route.encodedPolyline, { signal, baselineRouteDurationMinutes: route.durationMinutes });
+      if (['preview', 'development'].includes(process.env.VERCEL_ENV)
+        || (!process.env.VERCEL_ENV && process.env.NODE_ENV !== 'production')) {
         console.log(`Phase2A discovery: received=${diagnostics.receivedCount} candidates=${diagnostics.candidateCount} duplicates=${diagnostics.duplicateCount} rejected=${diagnostics.rejectedCount}`);
+        const metrics = diagnostics.routing;
+        const ranges = metrics.routedCount ? ` tripMin=${metrics.tripMin.toFixed(1)} tripMax=${metrics.tripMax.toFixed(1)} detourMin=${metrics.detourMin.toFixed(1)} detourMax=${metrics.detourMax.toFixed(1)}` : '';
+        console.log(`Phase2B routing: candidates=${diagnostics.candidateCount} routed=${metrics.routedCount} missing=${metrics.missingCount} inconsistent=${metrics.inconsistentCount}${ranges}`);
       }
     }
     return res.status(200).json({

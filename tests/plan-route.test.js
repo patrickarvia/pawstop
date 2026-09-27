@@ -87,7 +87,7 @@ async function captureDiscoveryLog(environment, run) {
     else process.env.VERCEL_ENV=oldEnvironment;
   }
 }
-test('discovery logs exactly one counts-only line outside production without changing responses',async()=>{
+test('discovery logs counts-only lines outside production without changing responses',async()=>{
   const options={placesBody:{places:[{id:'private-id',displayName:{text:'Private name'},formattedAddress:'Private address',location:{latitude:40,longitude:-74}},null]}};
   let productionBody;
   await captureDiscoveryLog('production',async logs=>{
@@ -99,7 +99,7 @@ test('discovery logs exactly one counts-only line outside production without cha
     await captureDiscoveryLog(environment,async logs=>{
       const result=await invoke(input(),undefined,200,options);
       assert.deepEqual(result.body,productionBody);
-      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4']]);
+      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0']]);
     });
   }
 });
@@ -110,4 +110,37 @@ test('zero-target routes and failed discovery emit no discovery log',async()=>{
     const failed=await invoke(input(),undefined,200,{placesReject:true});
     assert.equal(failed.statusCode,502);assert.deepEqual(logs,[]);
   });
+});
+
+test('real baseline feeds routing diagnostics while raw summaries and candidates stay private', async () => {
+  const places = ['routed', 'missing', 'inconsistent'].map(id => ({ id, displayName: { text: 'Private name' }, location: { latitude: 40, longitude: -74 } }));
+  const options = { placesBody: { places, routingSummaries: [
+    { legs: [{ duration: '662.5s' }, { duration: '12000s' }], directionsUri: 'private-provider-url' },
+    {}, { legs: [{ duration: '600s' }, { duration: '600s' }] }
+  ] } };
+  await captureDiscoveryLog('preview', async logs => {
+    const result = await invoke(input(), { routes: [route(12000)] }, 200, options);
+    assert.equal(result.statusCode, 200);
+    assert.deepEqual(logs, [
+      ['Phase2A discovery: received=12 candidates=3 duplicates=9 rejected=0'],
+      ['Phase2B routing: candidates=3 routed=1 missing=1 inconsistent=1 tripMin=11.0 tripMax=11.0 detourMin=11.0 detourMax=11.0']
+    ]);
+    assert.deepEqual(Object.keys(result.body), ['route', 'breakTargetsMinutes', 'recommendations']);
+    assert.deepEqual(result.body.recommendations, [{ targetMinutes: 150, stop: null }]);
+    for (const forbidden of ['routingSummaries', 'legs', 'candidate', 'Private name', 'private-provider-url', 'diagnostics', 'tripMinutes', 'detourMinutes']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
+  });
+});
+
+test('NODE_ENV production without Vercel environment emits no diagnostics', async () => {
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  try {
+    await captureDiscoveryLog(undefined, async logs => {
+      assert.equal((await invoke()).statusCode, 200);
+      assert.deepEqual(logs, []);
+    });
+  } finally {
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  }
 });

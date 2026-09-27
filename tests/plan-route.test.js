@@ -6,7 +6,7 @@ const route = seconds => ({duration:`${seconds}s`,distanceMeters:1200000,polylin
 async function invoke(body=input(), response={routes:[route(46800)]}, status=200, options={}) {
   const oldFetch=global.fetch, oldKey=process.env.GOOGLE_MAPS_API_KEY;
   let called=false, sent;
-  const searches=[];
+  const searches=[], details=[];
   if(options.missingKey) delete process.env.GOOGLE_MAPS_API_KEY;
   else process.env.GOOGLE_MAPS_API_KEY='test-only-placeholder';
   global.fetch=async(url,init)=>{
@@ -15,6 +15,13 @@ async function invoke(body=input(), response={routes:[route(46800)]}, status=200
       if(options.placesReject) throw new Error('private provider diagnostic');
       const status=options.placesStatus||200;
       return {ok:status===200,status,json:async()=>options.placesBody??{places:[]}};
+    }
+    if(url.startsWith('https://places.googleapis.com/v1/places/')){
+      details.push({url,...init});
+      assert.equal(init.signal,sent.signal);
+      if(options.detailsReject) throw new Error('private provider diagnostic');
+      const detailStatus=options.detailsStatus||200;
+      return {ok:detailStatus===200,status:detailStatus,json:async()=>options.detailsBody??{id:decodeURIComponent(url.split('/').at(-1))}};
     }
     called=true;sent={url,...init};
     if(options.reject) throw new Error('private provider diagnostic');
@@ -25,7 +32,7 @@ async function invoke(body=input(), response={routes:[route(46800)]}, status=200
   finally {global.fetch=oldFetch;if(oldKey===undefined) delete process.env.GOOGLE_MAPS_API_KEY;else process.env.GOOGLE_MAPS_API_KEY=oldKey;}
   assert.ok(!JSON.stringify(res.body).includes('test-only-placeholder'));
   assert.ok(!JSON.stringify(res.body).includes('private provider'));
-  return {...res,called,sent,searches};
+  return {...res,called,sent,searches,details};
 }
 test('normalizes route, targets and Phase 1 gaps; sends only route inputs',async()=>{
   const r=await invoke();assert.equal(r.statusCode,200);
@@ -70,7 +77,7 @@ test('Places failures are sanitized; zero-target routes skip discovery',async()=
   }
   const limited=await invoke(input(),undefined,200,{placesStatus:429});assert.equal(limited.statusCode,429);assert.equal(limited.body.error.code,'RATE_LIMITED');
   const short=await invoke(input(),{routes:[route(1200)]},200,{placesStatus:403});
-  assert.equal(short.statusCode,200);assert.deepEqual(short.searches,[]);assert.deepEqual(short.body.recommendations,[]);
+  assert.equal(short.statusCode,200);assert.deepEqual(short.searches,[]);assert.deepEqual(short.details,[]);assert.deepEqual(short.body.recommendations,[]);
   const empty=await invoke(input(),undefined,200,{placesBody:{}});assert.equal(empty.statusCode,200);assert.ok(empty.body.recommendations.every(r=>r.stop===null));
 });
 
@@ -99,14 +106,14 @@ test('discovery logs counts-only lines outside production without changing respo
     await captureDiscoveryLog(environment,async logs=>{
       const result=await invoke(input(),undefined,200,options);
       assert.deepEqual(result.body,productionBody);
-      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0'], ['Phase2C matching: targets=5 routed=0 pairs=0 coveredTargets=0 gaps=5 overDetour=0 close=0 early=0 late=0']]);
+      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0'], ['Phase2C matching: targets=5 routed=0 pairs=0 coveredTargets=0 gaps=5 overDetour=0 close=0 early=0 late=0'], ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0']]);
     });
   }
 });
 test('zero-target routes and failed discovery emit no discovery log',async()=>{
   await captureDiscoveryLog('preview',async logs=>{
     const short=await invoke(input(),{routes:[route(1200)]});
-    assert.equal(short.statusCode,200);assert.deepEqual(short.searches,[]);assert.deepEqual(logs,[]);
+    assert.equal(short.statusCode,200);assert.deepEqual(short.searches,[]);assert.deepEqual(short.details,[]);assert.deepEqual(logs,[]);
     const failed=await invoke(input(),undefined,200,{placesReject:true});
     assert.equal(failed.statusCode,502);assert.deepEqual(logs,[]);
   });
@@ -124,7 +131,8 @@ test('real baseline feeds routing diagnostics while raw summaries and candidates
     assert.deepEqual(logs, [
       ['Phase2A discovery: received=12 candidates=3 duplicates=9 rejected=0'],
       ['Phase2B routing: candidates=3 routed=1 missing=1 inconsistent=1 tripMin=11.0 tripMax=11.0 detourMin=11.0 detourMax=11.0'],
-      ['Phase2C matching: targets=1 routed=1 pairs=0 coveredTargets=0 gaps=1 overDetour=0 close=0 early=0 late=0']
+      ['Phase2C matching: targets=1 routed=1 pairs=0 coveredTargets=0 gaps=1 overDetour=0 close=0 early=0 late=0'],
+      ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0']
     ]);
     assert.deepEqual(Object.keys(result.body), ['route', 'breakTargetsMinutes', 'recommendations']);
     assert.deepEqual(result.body.recommendations, [{ targetMinutes: 150, stop: null }]);
@@ -179,6 +187,46 @@ test('Phase 2C uses real routed candidates and user cadence/max detour, with pri
   await captureDiscoveryLog('preview', async logs => {
     const body = input(); body.breakCadenceMinutes = 100; body.maxDetourMinutes = 12;
     await invoke(body, { routes: [route(18000)] }, 200, options);
-    assert.equal(logs.at(-1)[0], 'Phase2C matching: targets=2 routed=5 pairs=5 coveredTargets=2 gaps=0 overDetour=0 close=1 early=2 late=2');
+    assert.equal(logs.find(([line])=>line.startsWith('Phase2C'))[0], 'Phase2C matching: targets=2 routed=5 pairs=5 coveredTargets=2 gaps=0 overDetour=0 close=1 early=2 late=2');
+  });
+});
+
+const enrichmentOptions = () => ({ placesBody: {
+  places: [{ id: 'private-place-id', displayName: { text: 'Private dog area' }, primaryType: 'dog_park', location: { latitude: 40, longitude: -74 } }],
+  routingSummaries: [{ legs: [{ duration: '9000s' }, { duration: '3300s' }] }]
+}, detailsBody: { id: 'private-place-id', allowsDogs: false, restroom: true, parkingOptions: { freeParkingLot: true }, googleMapsUri: 'https://maps.google.com/?cid=123', extraPrivate: 'private provider body' } });
+
+test('Phase 2D diagnostics are counts only and enriched evidence never reaches the browser', async () => {
+  let expected;
+  for (const environment of ['preview', 'development', 'production']) {
+    await captureDiscoveryLog(environment, async logs => {
+      const result = await invoke(input(), { routes: [route(12000)] }, 200, enrichmentOptions());
+      assert.equal(result.statusCode, 200); assert.equal(result.details.length, 1);
+      assert.deepEqual(result.body.recommendations, [{ targetMinutes: 150, stop: null }]);
+      assert.deepEqual(Object.keys(result.body), ['route', 'breakTargetsMinutes', 'recommendations']);
+      if (expected) assert.deepEqual(result.body, expected); else expected = result.body;
+      assert.deepEqual(logs.filter(([line]) => line.startsWith('Phase2D')), environment === 'production' ? [] : [
+        ['Phase2D enrichment: selected=1 requested=1 enriched=1 unchanged=0 dogsKnown=1 restroomsKnown=1 parkingKnown=1 dedicatedKnown=1 navKnown=1']
+      ]);
+      if (environment === 'production') assert.deepEqual(logs, []);
+      for (const forbidden of ['private-place-id', 'Private dog area', 'attributes', 'googleMaps', 'navigation', 'diagnostics', 'candidate', 'extraPrivate', 'test-only-placeholder']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
+      for (const forbidden of ['private-place-id', 'Private dog area', 'googleMaps', '123', 'test-only-placeholder', 'Jersey City', 'Nashville', '150']) assert.ok(!JSON.stringify(logs.filter(([line]) => line.startsWith('Phase2D'))).includes(forbidden));
+    });
+  }
+});
+
+test('Phase 2D unavailable details retain gaps while infrastructure failures stay sanitized', async () => {
+  await captureDiscoveryLog('preview', async logs => {
+    for (const detailsStatus of [404, 410]) {
+      const result = await invoke(input(), { routes: [route(12000)] }, 200, { ...enrichmentOptions(), detailsStatus });
+      assert.equal(result.statusCode, 200); assert.equal(result.body.recommendations[0].stop, null);
+      assert.equal(logs.at(-1)[0], 'Phase2D enrichment: selected=1 requested=1 enriched=0 unchanged=1 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=1 navKnown=0');
+    }
+    for (const [options, status, code] of [[{ detailsStatus: 429 }, 429, 'RATE_LIMITED'], [{ detailsStatus: 403 }, 502, 'PROVIDER_ERROR'], [{ detailsStatus: 503 }, 502, 'PROVIDER_ERROR'], [{ detailsReject: true }, 502, 'PROVIDER_ERROR']]) {
+      logs.length = 0;
+      const result = await invoke(input(), { routes: [route(12000)] }, 200, { ...enrichmentOptions(), ...options });
+      assert.equal(result.statusCode, status); assert.equal(result.body.error.code, code);
+      assert.deepEqual(logs, []);
+    }
   });
 });

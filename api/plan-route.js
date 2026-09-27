@@ -1,3 +1,5 @@
+const { enrichTargetPools } = require('../lib/target-enrichment');
+const { EnrichmentError } = require('../lib/google-enrichment');
 const { matchTargets } = require('../lib/target-matching');
 const { discoverCandidates, DiscoveryError } = require('../lib/google-discovery');
 
@@ -54,7 +56,7 @@ module.exports = async function handler(req, res) {
   if (typeof key !== 'string' || !key.trim()) return error(502, 'PROVIDER_ERROR');
 
   try {
-    // Share the existing request budget across routing and discovery.
+    // Share the existing request budget across routing, discovery, and enrichment.
     const signal = AbortSignal.timeout(15000);
     const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
       method: 'POST',
@@ -88,6 +90,7 @@ module.exports = async function handler(req, res) {
     if (breakTargetsMinutes.length) {
       const { candidates, diagnostics } = await discoverCandidates(route.encodedPolyline, { signal, baselineRouteDurationMinutes: route.durationMinutes });
       const matching = matchTargets({ candidates, breakTargetsMinutes, breakCadenceMinutes: body.breakCadenceMinutes, maxDetourMinutes: body.maxDetourMinutes });
+      const enrichment = await enrichTargetPools(matching.pools, { signal });
       if (['preview', 'development'].includes(process.env.VERCEL_ENV)
         || (!process.env.VERCEL_ENV && process.env.NODE_ENV !== 'production')) {
         console.log(`Phase2A discovery: received=${diagnostics.receivedCount} candidates=${diagnostics.candidateCount} duplicates=${diagnostics.duplicateCount} rejected=${diagnostics.rejectedCount}`);
@@ -96,6 +99,8 @@ module.exports = async function handler(req, res) {
         console.log(`Phase2B routing: candidates=${diagnostics.candidateCount} routed=${metrics.routedCount} missing=${metrics.missingCount} inconsistent=${metrics.inconsistentCount}${ranges}`);
         const counts = matching.diagnostics;
         console.log(`Phase2C matching: targets=${counts.targets} routed=${counts.routed} pairs=${counts.pairs} coveredTargets=${counts.coveredTargets} gaps=${counts.gaps} overDetour=${counts.overDetour} close=${counts.close} early=${counts.early} late=${counts.late}`);
+        const evidence = enrichment.diagnostics;
+        console.log(`Phase2D enrichment: selected=${evidence.selected} requested=${evidence.requested} enriched=${evidence.enriched} unchanged=${evidence.unchanged} dogsKnown=${evidence.dogsKnown} restroomsKnown=${evidence.restroomsKnown} parkingKnown=${evidence.parkingKnown} dedicatedKnown=${evidence.dedicatedKnown} navKnown=${evidence.navKnown}`);
       }
     }
     return res.status(200).json({
@@ -104,7 +109,7 @@ module.exports = async function handler(req, res) {
       recommendations: breakTargetsMinutes.map(targetMinutes => ({ targetMinutes, stop: null }))
     });
   } catch (failure) {
-    if (failure instanceof DiscoveryError && failure.code === 'RATE_LIMITED') return error(429, 'RATE_LIMITED');
+    if ((failure instanceof DiscoveryError || failure instanceof EnrichmentError) && failure.code === 'RATE_LIMITED') return error(429, 'RATE_LIMITED');
     // Never return or log provider bodies, exception messages, or credentials.
     return error(502, 'PROVIDER_ERROR');
   }

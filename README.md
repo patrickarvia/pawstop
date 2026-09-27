@@ -1,4 +1,4 @@
-# Pawstop V2.2 Phase 2B-1
+# Pawstop V2.2 Phase 2C
 
 Pawstop is a dog-first road-trip stop planning prototype built with plain HTML, CSS, and JavaScript. Phase 1 replaces the fixed route duration with a real Google driving route and cadence-based break targets. Architecture: [V2.2 API contract](docs/v2.2-api-contract.md).
 
@@ -9,6 +9,10 @@ Pawstop is a dog-first road-trip stop planning prototype built with plain HTML, 
 Phase 2A adds internal along-route candidate discovery using four Places Text Searches: park, recreation area, picnic area, and rest area. Each search requests structural fields and response-level routing summaries and one page of up to 20 results; coverage is not exhaustive. Candidates are validated, deduplicated by Place ID, and normalized without inferring amenities or dog suitability. Routes with no break targets skip discovery. There are still no real-route stop recommendations, match scores, or stop navigation links; scoring and planning remain a later phase. Preferences are accepted for the future matching pipeline but do not yet affect planned stop selection. Break targets exclude dwell time and cumulative detours.
 
 Phase 2B-1 calculates internal candidate `route: { tripMinutes, detourMinutes }` from exactly two routing-summary legs using `DRIVE` and `TRAFFIC_UNAWARE`, without overriding the polyline origin. Trip minutes are first-leg seconds / 60; detour minutes are total leg seconds / 60 minus the real baseline duration. Positive durations (up to nine fractional digits) and total via durations are bounded to 30 days. Missing or unusable summaries and negative detours retain the structural candidate with `route: null`; negative detours are counted separately. Deduplication prefers usable metrics, otherwise fixed query order wins. Preview/development logs contain only aggregate coverage counts and rounded ranges for deduplicated candidates; production emits no diagnostics. Candidate metrics and provider summaries never reach the browser.
+
+Phase 2C internally matches real routed candidates to each cadence target using the inclusive half-cadence window: `abs(tripMinutes - targetMinutes) <= breakCadenceMinutes / 2`. Each match contains the unchanged candidate plus `targetMinutes`, `deltaMinutes`, `timingPenalty`, `timingLabel`, and `maxDetourPenalty`. Negative delta means early; positive means late. Timing penalty is zero within ±15 minutes, then 0.20 points per excess early minute or 0.75 per excess late minute. Labels say “Close to planned break” within ±15, otherwise rounded minutes before/after the planned break; calculations retain full numeric precision.
+
+`maxDetourMinutes` is not a hard exclusion: excess detour receives the existing `10 + 6 × excessMinutes` penalty, regardless of `minimalDetours`. Internal target-match pools retain all timing-eligible pairs, including over-max detours, shared candidates at adjacent window boundaries, and empty pools for coverage gaps. Pre-scoring order is absolute delta, detour, trip minutes, then stable candidate identity. `matchTargets({ candidates, breakTargetsMinutes, breakCadenceMinutes, maxDetourMinutes })` in `lib/target-matching.js` returns `{ pools, diagnostics }` without mutating candidates. Preview/development adds one counts-only `Phase2C matching` line with targets, routed, pairs, coveredTargets, gaps, overDetour, close, early, and late counts. Zero-target routes skip matching and its log; production stays silent. Pools remain internal and real stops are still not surfaced. Preference scoring and final unique, chronological selection are the next phase.
 
 Phase 1 explicitly uses `DRIVE` and `TRAFFIC_UNAWARE`, returning `trafficAware: false`. This is a temporary implementation choice; traffic-aware versus traffic-unaware routing remains an open V2.2 decision. Displayed duration does not include traffic.
 
@@ -37,6 +41,7 @@ With Node.js available:
 ```sh
 node --check app.js
 node --check api/plan-route.js
+node --check lib/target-matching.js
 node --test tests/*.test.js
 ```
 

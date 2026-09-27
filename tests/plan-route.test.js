@@ -99,7 +99,7 @@ test('discovery logs counts-only lines outside production without changing respo
     await captureDiscoveryLog(environment,async logs=>{
       const result=await invoke(input(),undefined,200,options);
       assert.deepEqual(result.body,productionBody);
-      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0']]);
+      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0'], ['Phase2C matching: targets=5 routed=0 pairs=0 coveredTargets=0 gaps=5 overDetour=0 close=0 early=0 late=0']]);
     });
   }
 });
@@ -123,7 +123,8 @@ test('real baseline feeds routing diagnostics while raw summaries and candidates
     assert.equal(result.statusCode, 200);
     assert.deepEqual(logs, [
       ['Phase2A discovery: received=12 candidates=3 duplicates=9 rejected=0'],
-      ['Phase2B routing: candidates=3 routed=1 missing=1 inconsistent=1 tripMin=11.0 tripMax=11.0 detourMin=11.0 detourMax=11.0']
+      ['Phase2B routing: candidates=3 routed=1 missing=1 inconsistent=1 tripMin=11.0 tripMax=11.0 detourMin=11.0 detourMax=11.0'],
+      ['Phase2C matching: targets=1 routed=1 pairs=0 coveredTargets=0 gaps=1 overDetour=0 close=0 early=0 late=0']
     ]);
     assert.deepEqual(Object.keys(result.body), ['route', 'breakTargetsMinutes', 'recommendations']);
     assert.deepEqual(result.body.recommendations, [{ targetMinutes: 150, stop: null }]);
@@ -143,4 +144,41 @@ test('NODE_ENV production without Vercel environment emits no diagnostics', asyn
     if (previous === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = previous;
   }
+});
+
+test('Phase 2C uses real routed candidates and user cadence/max detour, with private pools and counts-only logs', async () => {
+  const specs = [
+    ['close', 100, 5], ['early', 80, 12], ['late', 120, 11],
+    ['shared', 150, 12], ['outside', 299, 5]
+  ];
+  const options = { placesBody: {
+    places: specs.map(([id]) => ({ id, displayName: { text: 'Private candidate name' }, formattedAddress: 'Private address', location: { latitude: 40, longitude: -74 } })),
+    routingSummaries: specs.map(([, trip, detour]) => ({ legs: [{ duration: `${trip * 60}s` }, { duration: `${(300 + detour - trip) * 60}s` }] }))
+  } };
+  for (const environment of ['preview', 'development', 'production']) {
+    for (const minimalDetours of [true, false]) {
+      await captureDiscoveryLog(environment, async logs => {
+        const body = input(); body.breakCadenceMinutes = 100;
+        body.preferences.minimalDetours = minimalDetours;
+        const result = await invoke(body, { routes: [route(18000)] }, 200, options);
+        assert.equal(result.statusCode, 200); assert.equal(result.searches.length, 4);
+        assert.deepEqual(result.body, {
+          route: { durationMinutes: 300, distanceMeters: 1200000, encodedPolyline: 'encoded-route', provider: 'google', trafficAware: false },
+          breakTargetsMinutes: [100, 200],
+          recommendations: [{ targetMinutes: 100, stop: null }, { targetMinutes: 200, stop: null }]
+        });
+        const matchingLogs = logs.filter(([line]) => line.startsWith('Phase2C'));
+        assert.deepEqual(matchingLogs, environment === 'production' ? [] : [
+          ['Phase2C matching: targets=2 routed=5 pairs=5 coveredTargets=2 gaps=0 overDetour=4 close=1 early=2 late=2']
+        ]);
+        if (environment === 'production') assert.deepEqual(logs, []);
+        for (const forbidden of ['pools', 'candidate', 'deltaMinutes', 'timingPenalty', 'maxDetourPenalty', 'timingLabel', 'diagnostics', 'routingSummaries', 'legs', 'Private']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
+      });
+    }
+  }
+  await captureDiscoveryLog('preview', async logs => {
+    const body = input(); body.breakCadenceMinutes = 100; body.maxDetourMinutes = 12;
+    await invoke(body, { routes: [route(18000)] }, 200, options);
+    assert.equal(logs.at(-1)[0], 'Phase2C matching: targets=2 routed=5 pairs=5 coveredTargets=2 gaps=0 overDetour=0 close=1 early=2 late=2');
+  });
 });

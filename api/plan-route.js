@@ -1,3 +1,4 @@
+const { matchTargets } = require('../lib/target-matching');
 const { discoverCandidates, DiscoveryError } = require('../lib/google-discovery');
 
 const PREFERENCES = ['largeGrass', 'lowDogTraffic', 'restrooms', 'minimalDetours', 'fencedSpace', 'goodLighting', 'avoidDedicatedReliefAreas'];
@@ -85,13 +86,16 @@ module.exports = async function handler(req, res) {
     // Candidate metrics remain internal until the later scoring/planning phase.
     // Short routes need no discovery.
     if (breakTargetsMinutes.length) {
-      const { diagnostics } = await discoverCandidates(route.encodedPolyline, { signal, baselineRouteDurationMinutes: route.durationMinutes });
+      const { candidates, diagnostics } = await discoverCandidates(route.encodedPolyline, { signal, baselineRouteDurationMinutes: route.durationMinutes });
+      const matching = matchTargets({ candidates, breakTargetsMinutes, breakCadenceMinutes: body.breakCadenceMinutes, maxDetourMinutes: body.maxDetourMinutes });
       if (['preview', 'development'].includes(process.env.VERCEL_ENV)
         || (!process.env.VERCEL_ENV && process.env.NODE_ENV !== 'production')) {
         console.log(`Phase2A discovery: received=${diagnostics.receivedCount} candidates=${diagnostics.candidateCount} duplicates=${diagnostics.duplicateCount} rejected=${diagnostics.rejectedCount}`);
         const metrics = diagnostics.routing;
         const ranges = metrics.routedCount ? ` tripMin=${metrics.tripMin.toFixed(1)} tripMax=${metrics.tripMax.toFixed(1)} detourMin=${metrics.detourMin.toFixed(1)} detourMax=${metrics.detourMax.toFixed(1)}` : '';
         console.log(`Phase2B routing: candidates=${diagnostics.candidateCount} routed=${metrics.routedCount} missing=${metrics.missingCount} inconsistent=${metrics.inconsistentCount}${ranges}`);
+        const counts = matching.diagnostics;
+        console.log(`Phase2C matching: targets=${counts.targets} routed=${counts.routed} pairs=${counts.pairs} coveredTargets=${counts.coveredTargets} gaps=${counts.gaps} overDetour=${counts.overDetour} close=${counts.close} early=${counts.early} late=${counts.late}`);
       }
     }
     return res.status(200).json({

@@ -1,3 +1,5 @@
+const { scoreTargetPools } = require('../lib/scoring');
+const { selectStops } = require('../lib/selection');
 const { enrichTargetPools } = require('../lib/target-enrichment');
 const { EnrichmentError } = require('../lib/google-enrichment');
 const { matchTargets } = require('../lib/target-matching');
@@ -5,6 +7,7 @@ const { discoverCandidates, DiscoveryError } = require('../lib/google-discovery'
 
 const PREFERENCES = ['largeGrass', 'lowDogTraffic', 'restrooms', 'minimalDetours', 'fencedSpace', 'goodLighting', 'avoidDedicatedReliefAreas'];
 const MESSAGES = {
+  NO_STOP_CANDIDATES: "We couldn't find a suitable Pawstop along this route.",
   INVALID_INPUT: 'Please check your trip details and try again.',
   ROUTE_NOT_FOUND: "We couldn't find a drivable route between those locations.",
   PROVIDER_ERROR: "We couldn't load your route right now. Please try again shortly.",
@@ -85,12 +88,15 @@ module.exports = async function handler(req, res) {
     const route = data.routes.map(normalizeRoute).find(Boolean);
     if (!route) return error(502, 'PROVIDER_ERROR');
     const breakTargetsMinutes = plannedTargets(route.durationMinutes, body.breakCadenceMinutes);
-    // Candidate metrics remain internal until the later scoring/planning phase.
+    let recommendations = [];
+    // Only selected, explicitly projected stops cross the public boundary.
     // Short routes need no discovery.
     if (breakTargetsMinutes.length) {
       const { candidates, diagnostics } = await discoverCandidates(route.encodedPolyline, { signal, baselineRouteDurationMinutes: route.durationMinutes });
       const matching = matchTargets({ candidates, breakTargetsMinutes, breakCadenceMinutes: body.breakCadenceMinutes, maxDetourMinutes: body.maxDetourMinutes });
       const enrichment = await enrichTargetPools(matching.pools, { signal });
+      const selection = selectStops(scoreTargetPools(enrichment.pools, body), body);
+      recommendations = selection.recommendations;
       if (['preview', 'development'].includes(process.env.VERCEL_ENV)
         || (!process.env.VERCEL_ENV && process.env.NODE_ENV !== 'production')) {
         console.log(`Phase2A discovery: received=${diagnostics.receivedCount} candidates=${diagnostics.candidateCount} duplicates=${diagnostics.duplicateCount} rejected=${diagnostics.rejectedCount}`);
@@ -101,12 +107,15 @@ module.exports = async function handler(req, res) {
         console.log(`Phase2C matching: targets=${counts.targets} routed=${counts.routed} pairs=${counts.pairs} coveredTargets=${counts.coveredTargets} gaps=${counts.gaps} overDetour=${counts.overDetour} close=${counts.close} early=${counts.early} late=${counts.late}`);
         const evidence = enrichment.diagnostics;
         console.log(`Phase2D enrichment: selected=${evidence.selected} requested=${evidence.requested} enriched=${evidence.enriched} unchanged=${evidence.unchanged} dogsKnown=${evidence.dogsKnown} restroomsKnown=${evidence.restroomsKnown} parkingKnown=${evidence.parkingKnown} dedicatedKnown=${evidence.dedicatedKnown} navKnown=${evidence.navKnown}`);
+        const selected = selection.diagnostics;
+        console.log(`Phase2E selection: targets=${selected.targets} scored=${selected.scored} eligible=${selected.eligible} dogExcluded=${selected.dogExcluded} belowFitThreshold=${selected.belowFitThreshold} selected=${selected.selected} gaps=${selected.gaps} reusedSkipped=${selected.reusedSkipped} chronologySkipped=${selected.chronologySkipped} overDetourSelected=${selected.overDetourSelected} unknownDogAccessSelected=${selected.unknownDogAccessSelected}`);
       }
+      if (!selection.diagnostics.selected) return error(422, 'NO_STOP_CANDIDATES');
     }
     return res.status(200).json({
       route,
       breakTargetsMinutes,
-      recommendations: breakTargetsMinutes.map(targetMinutes => ({ targetMinutes, stop: null }))
+      recommendations
     });
   } catch (failure) {
     if ((failure instanceof DiscoveryError || failure instanceof EnrichmentError) && failure.code === 'RATE_LIMITED') return error(429, 'RATE_LIMITED');

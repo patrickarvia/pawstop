@@ -111,7 +111,7 @@ test('discovery logs counts-only lines outside production without changing respo
     await captureDiscoveryLog(environment,async logs=>{
       const result=await invoke(input(),undefined,200,options);
       assert.deepEqual(result.body,productionBody);
-      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0'], ['Phase2C matching: targets=5 routed=0 pairs=0 coveredTargets=0 gaps=5 overDetour=0 close=0 early=0 late=0'], ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0'], ['Phase2E selection: targets=5 scored=0 eligible=0 dogExcluded=0 selected=0 gaps=5 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']]);
+      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0'], ['Phase2C matching: targets=5 routed=0 pairs=0 coveredTargets=0 gaps=5 overDetour=0 close=0 early=0 late=0'], ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0'], ['Phase2E selection: targets=5 scored=0 eligible=0 dogExcluded=0 belowFitThreshold=0 selected=0 gaps=5 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']]);
     });
   }
 });
@@ -138,7 +138,7 @@ test('real baseline feeds routing diagnostics while raw summaries and candidates
       ['Phase2B routing: candidates=3 routed=1 missing=1 inconsistent=1 tripMin=11.0 tripMax=11.0 detourMin=11.0 detourMax=11.0'],
       ['Phase2C matching: targets=1 routed=1 pairs=0 coveredTargets=0 gaps=1 overDetour=0 close=0 early=0 late=0'],
       ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0'],
-      ['Phase2E selection: targets=1 scored=0 eligible=0 dogExcluded=0 selected=0 gaps=1 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']
+      ['Phase2E selection: targets=1 scored=0 eligible=0 dogExcluded=0 belowFitThreshold=0 selected=0 gaps=1 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']
     ]);
     assert.deepEqual(result.body, { error: { code: 'NO_STOP_CANDIDATES', message: "We couldn't find a suitable Pawstop along this route." } });
     for (const forbidden of ['routingSummaries', 'legs', 'candidate', 'Private name', 'private-provider-url', 'diagnostics', 'tripMinutes', 'detourMinutes']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
@@ -177,7 +177,7 @@ test('Phase 2C uses real routed candidates and user cadence/max detour, with pri
         assert.equal(result.statusCode, 200); assert.equal(result.searches.length, 4);
         assert.deepEqual(Object.keys(result.body), ['route','breakTargetsMinutes','recommendations']);
         assert.deepEqual(result.body.breakTargetsMinutes, [100,200]);
-        assert.deepEqual(result.body.recommendations.map(r => r.stop.route.tripMinutes), [100,150]);
+        assert.deepEqual(result.body.recommendations.map(r => r.stop?.route.tripMinutes ?? null), [100,null]);
         const matchingLogs = logs.filter(([line]) => line.startsWith('Phase2C'));
         assert.deepEqual(matchingLogs, environment === 'production' ? [] : [
           ['Phase2C matching: targets=2 routed=5 pairs=5 coveredTargets=2 gaps=0 overDetour=4 close=1 early=2 late=2']
@@ -221,7 +221,7 @@ test('Phase 2D unavailable details retain unknown evidence while infrastructure 
   await captureDiscoveryLog('preview', async logs => {
     for (const detailsStatus of [404, 410]) {
       const result = await invoke(input(), { routes: [route(12000)] }, 200, { ...enrichmentOptions(), detailsStatus });
-      assert.equal(result.statusCode, 200); assert.equal(result.body.recommendations[0].stop.attributes.dogsAllowed.confidence, 'unknown');
+      assert.equal(result.statusCode, 422); assert.equal(result.body.error.code, 'NO_STOP_CANDIDATES');
       assert.equal(logs.filter(([line])=>line.startsWith('Phase2D')).at(-1)[0], 'Phase2D enrichment: selected=1 requested=1 enriched=0 unchanged=1 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=1 navKnown=0');
     }
     for (const [options, status, code] of [[{ detailsStatus: 429 }, 429, 'RATE_LIMITED'], [{ detailsStatus: 403 }, 502, 'PROVIDER_ERROR'], [{ detailsStatus: 503 }, 502, 'PROVIDER_ERROR'], [{ detailsReject: true }, 502, 'PROVIDER_ERROR']]) {
@@ -238,7 +238,8 @@ test('Phase 2E exposes normalized enriched stops, partial coverage and counts-on
     await captureDiscoveryLog(environment, async logs => {
       const options = enrichmentOptions(); options.detailsBody.allowsDogs = true;
       options.placesBody.routingSummaries[0].legs[1].duration = '9600s';
-      const result = await invoke(input(), { routes: [route(18000)] }, 200, options);
+      const body = input(); body.preferences.avoidDedicatedReliefAreas = false;
+      const result = await invoke(body, { routes: [route(18000)] }, 200, options);
       assert.equal(result.statusCode, 200);
       assert.deepEqual(result.body.breakTargetsMinutes, [150]);
       const stop = result.body.recommendations[0].stop;
@@ -247,13 +248,39 @@ test('Phase 2E exposes normalized enriched stops, partial coverage and counts-on
       assert.deepEqual(stop.navigation, { googleMapsUrl: 'https://maps.google.com/?cid=123' });
       assert.equal(stop.provenance.placeId, 'private-place-id');
       assert.equal(stop.route.targetMinutes, 150); assert.equal(stop.route.deltaMinutes, 0);
-      assert.equal(stop.pawstop.matchScore, 47); assert.equal(stop.pawstop.plannedFitScore, 47);
+      assert.equal(stop.pawstop.matchScore, 70); assert.equal(stop.pawstop.plannedFitScore, 70);
       assert.ok(stop.pawstop.why.includes('Google Places reports that dogs are allowed.'));
       for (const forbidden of ['allowsDogs','parkingOptions','googleMapsUri','routingSummaries','timingPenalty','maxDetourPenalty','extraPrivate','earned','possible','diagnostics','pools']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
       assert.deepEqual(logs.filter(([line])=>line.startsWith('Phase2E')), environment === 'production' ? [] : [
-        ['Phase2E selection: targets=1 scored=1 eligible=1 dogExcluded=0 selected=1 gaps=0 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']
+        ['Phase2E selection: targets=1 scored=1 eligible=1 dogExcluded=0 belowFitThreshold=0 selected=1 gaps=0 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']
       ]);
       if (environment === 'production') assert.deepEqual(logs, []);
     });
+  }
+});
+
+test('quality floor preserves partial 200 coverage and returns NO_STOP_CANDIDATES only when every target is below it', async () => {
+  for (const environment of ['preview', 'development', 'production']) {
+    for (const partial of [true, false]) {
+      await captureDiscoveryLog(environment, async logs => {
+        const specs = partial ? [['good',150],['late',368.7]] : [['late-first',218.7],['late-second',368.7]];
+        const body = input(); body.preferences = Object.fromEntries(Object.keys(body.preferences).map(key => [key, false]));
+        const result = await invoke(body, { routes: [route(24000)] }, 200, { placesBody: {
+          places: specs.map(([id])=>({ id, displayName: { text: 'Real stop' }, location: { latitude: 40, longitude: -74 } })),
+          routingSummaries: specs.map(([,trip])=>({ legs: [{ duration: `${(trip*60).toFixed(3)}s` }, { duration: `${((405-trip)*60).toFixed(3)}s` }] }))
+        } });
+        if (partial) {
+          assert.equal(result.statusCode, 200);
+          assert.deepEqual(result.body.breakTargetsMinutes, [150,300]);
+          assert.equal(result.body.recommendations[0].stop.pawstop.plannedFitScore, 70);
+          assert.deepEqual(result.body.recommendations[1], { targetMinutes: 300, stop: null });
+        } else {
+          assert.equal(result.statusCode, 422); assert.equal(result.body.error.code, 'NO_STOP_CANDIDATES');
+        }
+        const line = `Phase2E selection: targets=2 scored=2 eligible=2 dogExcluded=0 belowFitThreshold=${partial ? 1 : 2} selected=${partial ? 1 : 0} gaps=${partial ? 1 : 2} reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=${partial ? 1 : 0}`;
+        assert.deepEqual(logs.filter(([text])=>text.startsWith('Phase2E')), environment === 'production' ? [] : [[line]]);
+        if (environment === 'production') assert.deepEqual(logs, []);
+      });
+    }
   }
 });

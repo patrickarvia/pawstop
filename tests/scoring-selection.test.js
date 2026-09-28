@@ -104,7 +104,7 @@ test('selection greedily skips reused and non-increasing stops, preserves gaps a
   const result = selectStops(pools, { maxDetourMinutes: 10 });
   assert.deepEqual(result.recommendations.map(r => [r.targetMinutes, r.stop?.id || null]), [[150,'a'],[300,'b'],[450,null],[600,'d']]);
   assert.deepEqual(pools, before);
-  assert.deepEqual(result.diagnostics, { targets: 4, scored: 6, eligible: 6, dogExcluded: 0, selected: 3, gaps: 1, reusedSkipped: 1, chronologySkipped: 2, overDetourSelected: 1, unknownDogAccessSelected: 3 });
+  assert.deepEqual(result.diagnostics, { targets: 4, scored: 6, eligible: 6, dogExcluded: 0, belowFitThreshold: 0, selected: 3, gaps: 1, reusedSkipped: 1, chronologySkipped: 2, overDetourSelected: 1, unknownDogAccessSelected: 3 });
 });
 test('public projection exposes only contract fields, preserves metrics and does not mutate inputs', () => {
   const c = candidate(); c.navigation = { googleMapsUrl: 'https://maps.google.com/?cid=1', secret: 'hidden' }; c.raw = 'hidden';
@@ -140,4 +140,40 @@ test('changing preferences materially changes the selected stop', () => {
 test('inferred traffic has half influence relative to confirmed boolean evidence', () => {
   const c = candidate('a', { dogTraffic: evidence('medium', 'inferred'), restrooms: evidence(false) });
   assert.equal(score(c, { lowDogTraffic: true, restrooms: true }).pawstop.matchScore, 20);
+});
+
+test('final quality floor includes exactly 60 and excludes 59.999 without changing scored/eligible counts', () => {
+  const { MIN_PLANNED_FIT_SCORE } = require('../lib/selection');
+  assert.equal(MIN_PLANNED_FIT_SCORE, 60);
+  for (const fit of [60, 59.999]) {
+    const result = selectStops([{ targetMinutes: 150, matches: [scored(candidate(), fit)] }], options());
+    assert.equal(result.recommendations[0].stop?.id ?? null, fit === 60 ? 'a' : null);
+    assert.equal(result.diagnostics.scored, 1); assert.equal(result.diagnostics.eligible, 1);
+    assert.equal(result.diagnostics.belowFitThreshold, fit === 60 ? 0 : 1);
+  }
+});
+
+test('qualifying planned fit outranks a low-fit candidate listed first even with higher match score', () => {
+  const low = scored(candidate('late', {}, 218.7), 46.7, 68.7); low.pawstop.matchScore = 87;
+  const qualifying = scored(candidate('qualifying'), 60);
+  const rows = [low, qualifying]; const before = structuredClone(rows);
+  const result = selectStops([{ targetMinutes: 150, matches: rows }], options());
+  assert.equal(result.recommendations[0].stop.id, 'qualifying');
+  assert.deepEqual(rows, before);
+  // Descending fit visits the qualifying winner first; lower matches are not encountered.
+  assert.equal(result.diagnostics.belowFitThreshold, 0);
+});
+
+test('low-fit pools create gaps, count each skipped pair and preserve uniqueness/chronology afterward', () => {
+  const a = candidate('a', {}, 150), later = candidate('later', {}, 450);
+  const pools = [
+    { targetMinutes: 150, matches: [scored(a, 60)] },
+    { targetMinutes: 300, matches: [scored(candidate('low', {}, 300), 59.999, 0, 300), scored(candidate('lower', {}, 310), 40, 10, 300)] },
+    { targetMinutes: 450, matches: [scored(a, 90, 0, 450), scored(candidate('backward', {}, 149), 80, 0, 450), scored(later, 60, 0, 450)] }
+  ];
+  const result = selectStops(pools, options());
+  assert.deepEqual(result.recommendations.map(r => r.stop?.id ?? null), ['a', null, 'later']);
+  assert.equal(result.diagnostics.belowFitThreshold, 2);
+  assert.equal(result.diagnostics.reusedSkipped, 1); assert.equal(result.diagnostics.chronologySkipped, 1);
+  assert.equal(result.diagnostics.scored, 6); assert.equal(result.diagnostics.eligible, 6);
 });

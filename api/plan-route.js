@@ -108,7 +108,7 @@ module.exports = async function handler(req, res) {
         const evidence = enrichment.diagnostics;
         console.log(`Phase2D enrichment: selected=${evidence.selected} requested=${evidence.requested} enriched=${evidence.enriched} unchanged=${evidence.unchanged} dogsKnown=${evidence.dogsKnown} restroomsKnown=${evidence.restroomsKnown} parkingKnown=${evidence.parkingKnown} dedicatedKnown=${evidence.dedicatedKnown} navKnown=${evidence.navKnown}`);
         const selected = selection.diagnostics;
-        console.log(`Phase2E selection: targets=${selected.targets} scored=${selected.scored} eligible=${selected.eligible} dogExcluded=${selected.dogExcluded} selected=${selected.selected} gaps=${selected.gaps} reusedSkipped=${selected.reusedSkipped} chronologySkipped=${selected.chronologySkipped} overDetourSelected=${selected.overDetourSelected} unknownDogAccessSelected=${selected.unknownDogAccessSelected}`);
+        console.log(`Phase2E selection: targets=${selected.targets} scored=${selected.scored} eligible=${selected.eligible} dogExcluded=${selected.dogExcluded} belowFitThreshold=${selected.belowFitThreshold} selected=${selected.selected} gaps=${selected.gaps} reusedSkipped=${selected.reusedSkipped} chronologySkipped=${selected.chronologySkipped} overDetourSelected=${selected.overDetourSelected} unknownDogAccessSelected=${selected.unknownDogAccessSelected}`);
       }
       if (!selection.diagnostics.selected) return error(422, 'NO_STOP_CANDIDATES');
     }

@@ -15,8 +15,16 @@ let lifeStage="Puppy", cadenceMinutes=150;
 let urgentOrigin="route";
 let avoidRelief=true, maxDetour=10, dogName="Conan", current=null, urgentWindow=30;
 
-document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{b.classList.toggle("active");preferences[b.dataset.pref]=b.classList.contains("active")});
-document.querySelectorAll(".time-pill").forEach(b=>b.onclick=()=>{document.querySelectorAll(".time-pill").forEach(x=>x.classList.remove("active"));b.classList.add("active");urgentWindow=+b.dataset.window;renderUrgent(bestForWindow(urgentWindow))});
+document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{b.classList.toggle("active");preferences[b.dataset.pref]=b.classList.contains("active");b.setAttribute("aria-pressed",b.classList.contains("active"))});
+document.querySelectorAll(".time-pill").forEach(b=>b.onclick=()=>{document.querySelectorAll(".time-pill").forEach(x=>x.classList.remove("active"));b.classList.add("active");urgentWindow=+b.dataset.window;renderUrgent(bestForWindow(urgentWindow));syncSelectionState()});
+
+// Presentation state only; ranking, preferences, and navigation remain unchanged.
+function syncSelectionState(alternative="best"){
+  document.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",b.classList.contains("active")));
+  document.querySelectorAll(".time-pill").forEach(b=>b.setAttribute("aria-pressed",b.classList.contains("active")));
+  document.querySelectorAll("[data-alt]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.alt===alternative));
+}
+syncSelectionState();
 
 function scoreStop(s){
   let earned=0,possible=0;
@@ -165,6 +173,7 @@ function openUrgentDemo(origin){
   urgentWindow=30;
   document.querySelectorAll(".time-pill").forEach(b=>b.classList.toggle("active",b.dataset.window==="30"));
   renderUrgent(bestForWindow(30));
+  syncSelectionState();
   $(origin).classList.add("hidden");$("urgent").classList.remove("hidden");scrollTo(0,0)
 }
 $("plannerDemo").onclick=()=>openUrgentDemo("planner");
@@ -180,4 +189,5 @@ document.querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{
   if(b.dataset.alt==="grass") s=[...rs].sort((a,b)=>b.grass-a.grass||b.match-a.match)[0];
   if(b.dataset.alt==="restrooms") s=[...rs].sort((a,b)=>b.restrooms-a.restrooms||b.match-a.match)[0];
   renderUrgent(s||bestForWindow(urgentWindow));
+  syncSelectionState(b.dataset.alt);
 });

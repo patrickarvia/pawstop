@@ -129,3 +129,36 @@ test('missing recommendation contract is a sanitized error, never reconstructed 
   const b=browser(async()=>({ok:true,json:async()=>({route:{durationMinutes:200,distanceMeters:20000},breakTargetsMinutes:[150]})}));await b.element('planBtn').onclick();
   assert.equal(b.element('planError').textContent,b.read('routeErrors.PROVIDER_ERROR'));assert.equal(b.element('route').classList.contains('hidden'),true);
 });
+
+test('route intro describes real ranking and preserves the dynamic dog name',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  assert.match(html,/Break targets planned for <strong id="dogName"><\/strong> around your selected cadence\. PawStop ranks route-aware stops using timing, detour, and available place evidence\./);
+  assert.doesNotMatch(html,/Stop locations are coming next/);
+});
+test('urgent demo CTA follows recommendations in normal flow without sticky positioning',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  assert.ok(html.indexOf('id="stops"')<html.indexOf('id="needStop"'));
+  assert.match(html,/<button id="needStop" class="need">/);
+  const rules=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(match=>match[1].split(',').some(selector=>selector.trim()==='.need'));
+  assert.ok(rules.some(rule=>/position:static/.test(rule[2])));
+  assert.ok(rules.every(rule=>!/position:\s*(sticky|fixed)|\bbottom:/.test(rule[2])));
+  assert.doesNotMatch(css,/#route #stops\{padding-bottom:calc\(80px/);
+});
+test('backend dog-access caveats remain intact without a duplicate dedicated disclosure',async()=>{
+  for(const caveat of ['Dog access is not confirmed.','Dog access not yet confirmed.','Dog permission is unknown.','Dogs allowed: unconfirmed.','Dog access is inferred, not confirmed.']){
+    const stop=normalizedStop();stop.pawstop.why=[caveat,'Reported restrooms available.'];
+    const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+    assert.ok(html.includes(caveat));assert.doesNotMatch(html,/class="dog-access"/);
+  }
+  const stop=normalizedStop();stop.pawstop.why=['Restroom access is not confirmed.'];
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.match(html,/class="dog-access">Dog access not yet confirmed/);
+});
+test('hyphenated and underscored normalized place types display as spaces without mutation',async()=>{
+  for(const [primaryType,label] of [['rest-area','Rest area'],['recreation_area','Recreation area']]){
+    const stop=normalizedStop({primaryType});
+    const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+    assert.ok(html.includes(`<span class="type-badge">${label}</span>`));assert.equal(stop.primaryType,primaryType);
+  }
+});

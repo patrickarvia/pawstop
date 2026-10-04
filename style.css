@@ -66,9 +66,7 @@ input:focus,select:focus{outline:2px solid var(--forest);outline-offset:2px;bord
 .stop-actions{display:flex;gap:8px;margin-top:14px}
 .stop-actions button{color:var(--forest);border-color:transparent;padding-left:0;text-decoration:underline;text-underline-offset:4px}
 .data-note{margin-top:12px;padding:14px;background:var(--cream);border-radius:9px;font-size:11px;line-height:1.6;color:var(--muted)}
-/* Keep the final entry readable above the sticky action and device safe area. */
-#route #stops{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
-.need{position:sticky;bottom:max(18px,env(safe-area-inset-bottom,0px));margin-top:20px;box-shadow:0 8px 24px rgba(23,55,47,.16)}
+.need{position:static;margin-top:20px;box-shadow:0 8px 24px rgba(23,55,47,.16)}
 .time-pills{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:22px 0}
 .time-pill{padding:11px 5px;background:var(--paper)}
 .urgent-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}

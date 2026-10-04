@@ -67,8 +67,13 @@ function timingLabel(actual,target){
 }
 // Escape every public string before inserting recommendation markup.
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function readableType(type){return type.replace(/_/g," ").replace(/^./,c=>c.toUpperCase())}
+function readableType(type){return type.replace(/[_-]/g," ").replace(/^./,c=>c.toUpperCase())}
 function supported(attribute){return attribute?.confidence==="confirmed"||attribute?.confidence==="inferred"}
+function hasDogAccessCaveat(why){
+  return why.some(explanation=>/\bdog(?:s)?\b/i.test(explanation)
+    &&/\b(access|permission|allowed|allowance)\b/i.test(explanation)
+    &&/\b(not (?:yet )?confirmed|unconfirmed|unknown|uncertain|not verified|not (?:yet )?verified|not known)\b/i.test(explanation));
+}
 function renderRecommendation({targetMinutes,stop},index){
   const label=`<div class="rec-label">PLANNED BREAK ${index+1} · ${formatMinutes(targetMinutes)}</div>`;
   if(stop===null) return `<article class="stop coverage-gap">${label}
@@ -94,7 +99,7 @@ function renderRecommendation({targetMinutes,stop},index){
     <div class="recommendation-timing"><span>${formatMinutes(stop.route.tripMinutes)} from start</span><span>${detour?`+${detour} min detour`:"No estimated route detour"}</span><span>${escapeHtml(stop.route.timingLabel)}</span></div>
     ${tags.length?`<div class="tags">${tags.map(tag=>`<span>${escapeHtml(tag)}</span>`).join("")}</div>`:""}
     ${stop.pawstop.why.length?`<div class="why"><strong>Why PawStop picked this</strong><ul>${stop.pawstop.why.map(why=>`<li>${escapeHtml(why)}</li>`).join("")}</ul></div>`:""}
-    <p class="dog-access">${dogAccess}</p>
+    ${dogAccess!=="Dog access confirmed"&&hasDogAccessCaveat(stop.pawstop.why)?"":`<p class="dog-access">${dogAccess}</p>`}
     <div class="stop-actions">${stop.navigation?.googleMapsUrl?`<a class="recommendation-nav" href="${escapeHtml(stop.navigation.googleMapsUrl)}" target="_blank" rel="noopener">Navigate →</a>`:'<span class="navigation-unavailable">Navigation link unavailable</span>'}</div>
   </article>`;
 }

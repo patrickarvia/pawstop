@@ -54,7 +54,8 @@
       <p id="planStatus" class="meta" role="status" aria-live="polite"></p>
       <p id="planError" class="urgent-status warning hidden" role="alert"></p>
       <button id="planBtn" class="primary">Build my Pawstop route →</button>
-      <div class="stop-actions"><button id="plannerDemo" type="button">Try urgent stop demo</button></div>
+      <div class="stop-actions"><button id="plannerDemo" type="button" aria-describedby="plannerDemoContext">Preview urgent-stop demo</button></div>
+      <p id="plannerDemoContext" class="meta">Curated Jersey City → Chicago example. Not based on your entered route or live location.</p>
     </div>
 
     <p class="fine">Real driving routes and break targets. Stop discovery is coming next; no real stop recommendations yet.</p>
@@ -81,8 +82,6 @@
     <p id="routeLogic" class="route-logic"></p>
     <div id="stops"></div>
 
-    <button id="needStop" class="need">🐾 <span id="needText">Try the urgent-stop demo</span></button>
-    <p class="fine">The urgent-stop demo uses a separate curated Jersey City → Chicago dataset, not this route or your location. Pawstop does not assess medical safety.</p>
   </section>
 
   <section id="urgent" class="screen hidden">
@@ -92,8 +91,8 @@
     </div>
 
     <p class="eyebrow">URGENT-STOP DEMO</p>
-    <p class="route-logic">Curated Jersey City → Chicago demo only. These stops and estimated times are not based on your planned route or live location.</p>
-    <h2 id="urgentTitle">How soon does Conan need a break?</h2>
+    <p class="route-logic">Curated Jersey City → Chicago example. Stops are curated and timing is simulated, not based on your planned route or live location. PawStop does not assess medical safety.</p>
+    <h2 id="urgentTitle">Demo stop for Conan</h2>
     <div class="time-pills">
       <button class="time-pill" data-window="15">Within 15 min</button>
       <button class="time-pill active" data-window="30">Within 30 min</button>

@@ -1,4 +1,4 @@
-# Pawstop V2.2 Phase 2H
+# Pawstop V2.2 Phase 2I
 
 Pawstop is a dog-first road-trip stop planning prototype built with plain HTML, CSS, and JavaScript. Architecture: [V2.2 API contract](docs/v2.2-api-contract.md).
 
@@ -71,9 +71,9 @@ A static-only local server cannot execute `/api/plan-route`; use Vercel's functi
 
 ## Separate urgent-stop demo
 
-The urgent-stop prototype remains explicitly labeled as a curated Jersey City → Chicago demo. Its six stops and simulated time-ahead values are unrelated to the real planned route or device location. The route screen's “Try the urgent-stop demo” button opens it.
+The urgent-stop prototype remains explicitly labeled as a curated Jersey City → Chicago demo. Its six stops and simulated time-ahead values are unrelated to the real planned route or device location. It is accessible only from the planner’s “Preview urgent-stop demo” action, with fixed Jersey City → Chicago context shown before opening. Real route results contain no demo entry point or curated-demo information; arbitrary real routes cannot transition into curated demo data. The demo heading says “Demo stop for [dog]” and its back action returns to the planner.
 
-The demo retains preference matching, Puppy / Adult / Senior soft signals, and the max-detour penalty of ten points plus six per excess minute. Urgent ETA includes simulated time ahead plus detour. The 15-, 30-, and 60-minute windows, eligible alternatives, outside-window warning, source disclosures, demo reports, and Google Maps links remain available. These are demonstration scores and observations, not live conditions or medical guidance. Live urgent geolocation belongs to V2.2.1.
+The demo retains preference matching, Puppy / Adult / Senior soft signals, and the max-detour penalty of ten points plus six per excess minute. Urgent ETA includes simulated time ahead plus detour. The 15-, 30-, and 60-minute windows, eligible alternatives, outside-window warning, source disclosures, demo reports, and Google Maps links remain available. These are demonstration scores and observations, not live conditions or medical guidance. V2.2.1 will replace the curated demo with route/location-aware urgent stop discovery.
 
 The V2.1.1 timing helpers remain for future real-stop planning: ±15 minutes has no penalty, then early minutes cost 0.20 points each and late minutes cost 0.75. They are not used to invent Phase 1 recommendations.
 

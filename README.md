@@ -1,4 +1,4 @@
-# Pawstop V2.2 Phase 2F
+# Pawstop V2.2 Phase 2G
 
 Pawstop is a dog-first road-trip stop planning prototype built with plain HTML, CSS, and JavaScript. Architecture: [V2.2 API contract](docs/v2.2-api-contract.md).
 
@@ -6,7 +6,7 @@ Pawstop is a dog-first road-trip stop planning prototype built with plain HTML, 
 
 `POST /api/plan-route` now returns real normalized stops selected from the computed route. The success envelope remains `{ route, breakTargetsMinutes, recommendations }`. Each target has `{ targetMinutes, stop }`, where `stop` is a normalized real stop or `null` for a coverage gap. Partial coverage is HTTP 200. When targets exist but no stop can be selected, HTTP 422 returns `NO_STOP_CANDIDATES` with “We couldn't find a suitable Pawstop along this route.” Zero-target routes still succeed with empty targets/recommendations and skip discovery, enrichment, and selection.
 
-The frontend now renders real itinerary recommendations directly from the normalized public API response: stop identity, optional place type/address, route timing, PawStop match score, backend explanations, supported amenity tags, dog-access evidence, and the returned navigation link. Inferred attributes are labeled; unknown dog access stays visibly unconfirmed. Match is a product score, not a probability. Missing navigation has an unavailable state. Explicit gaps and the short-route “no planned breaks before arrival” state remain intentional successful outcomes. Backend scoring and selection are unchanged. The premium outdoor design and separate curated urgent-stop demo remain intact; live urgent geolocation is future V2.2.1 work.
+The frontend now renders real itinerary recommendations directly from the normalized public API response: stop identity, optional place type/address, route timing, PawStop match score, backend explanations, supported amenity tags, dog-access evidence, and the returned navigation link. Inferred attributes are labeled; unknown dog access stays visibly unconfirmed. Match is a product score, not a probability. Missing navigation has an unavailable state. Explicit gaps and the short-route “no planned breaks before arrival” state remain intentional successful outcomes. Phase 2G calibrates scores with evidence ceilings; selection uses calibrated planned fit with its existing quality floor and ordering. Cards show a secondary evidence-strength badge alongside the match score. The premium outdoor design and separate curated urgent-stop demo remain intact; live urgent geolocation is future V2.2.1 work.
 
 Routes use `DRIVE` and `TRAFFIC_UNAWARE`, returning `trafficAware: false`. Targets are positive cadence multiples strictly before arrival and exclude dwell time and cumulative detours. Four one-page along-route searches (park, recreation area, picnic area, rest area; up to 20 results each) discover and deduplicate structural candidates. Phase 2B derives trip minutes from the first routing-summary leg and detour from total leg duration minus the baseline. Unusable summaries and negative detours keep structural candidates with unavailable metrics. Phase 2C uses the inclusive half-cadence window and calculates signed delta, timing label, asymmetric timing penalty, and max-detour penalty without changing candidate route metrics.
 
@@ -14,13 +14,30 @@ Phase 2D still enriches only the first five matches per target in deterministic 
 
 ## Evidence-aware scoring and selection
 
-`scoreStop(candidate, targetMatch, { preferences, lifeStage, maxDetourMinutes })` in `lib/scoring.js` returns `{ eligible, pawstop: { matchScore, plannedFitScore, why } }`. `scoreTargetPools` scores every match without mutation, including candidates outside the enrichment budget. Scoring uses normalized Pawstop evidence only.
+`scoreStop(candidate, targetMatch, { preferences, lifeStage, maxDetourMinutes })` in `lib/scoring.js` returns `{ eligible, pawstop: { matchScore, plannedFitScore, evidenceCoverage, evidenceStrength, why } }`. `scoreTargetPools` scores every match without mutation, including candidates outside the enrichment budget. Scoring uses normalized Pawstop evidence only.
 
 Unknown evidence is neither positive nor negative: it contributes zero earned and possible points. Confirmed evidence has weight 1; inferred evidence has weight 0.5. Enabled boolean preferences contribute `5 × weight` possible points, with the same earned points for true and zero for false. Low/medium/high dog traffic contributes 5/3/1 earned points times confidence weight. Avoiding dedicated areas rewards evidenced false and earns zero for evidenced true; unknown absence earns nothing. Parking and dog permission add no preference points.
 
 When minimal detours is enabled, it contributes five possible points and `max(0, 5 - detourMinutes / max(maxDetourMinutes, 1) × 3)` earned points. Raw preference score is earned / possible, or the neutral 0.70 fallback with no scoreable evidence. Max detour remains a preference, not a hard exclusion: the exact Phase 2C penalty is zero within the maximum, otherwise `10 + 6 × excessMinutes`, even when minimal detours is disabled.
 
-Puppy soft signals use known low/medium/high traffic for +3/0/−3 at confirmed confidence and half that influence for inferred evidence; unknown contributes zero. Adults are neutral. Seniors use `max(-3, 3 - detourMinutes / 2)`. These are product preferences, not medical claims. `matchScore = clamp(round(rawPreferenceScore × 100 + lifeStageBonus - maxDetourPenalty), 0, 98)` is a product score, not a probability. `plannedFitScore = matchScore - timingPenalty` retains fractional precision and may be negative. The existing timing penalty remains zero within ±15 minutes, then 0.20 per excess early minute or 0.75 per excess late minute.
+Puppy soft signals use known low/medium/high traffic for +3/0/−3 at confirmed confidence and half that influence for inferred evidence; unknown contributes zero. Adults are neutral. Seniors use `max(-3, 3 - detourMinutes / 2)`. These are product preferences, not medical claims. `existingScore = clamp(round(rawPreferenceScore × 100 + lifeStageBonus - maxDetourPenalty), 0, 98)` is a product score, not a probability. `matchScore = min(existingScore, dogAccessCeiling, evidenceCoverageCeiling)`. `plannedFitScore = matchScore - timingPenalty` retains fractional precision and may be negative. The existing timing penalty remains zero within ±15 minutes, then 0.20 per excess early minute or 0.75 per excess late minute.
+
+### Phase 2G evidence calibration
+
+Match measures how well a stop fits selected PawStop criteria, bounded by available evidence. Evidence strength measures how much supporting information exists for those enabled preferences. Neither is probability, safety confidence, a guarantee, or a live-condition assessment. Unknown remains distinct from false: it contributes no fit points or fit denominator, and never becomes a negative value. Sparse information limits the score ceiling rather than subtracting points.
+
+Dog access independently limits match: confirmed true permits 98, inferred true permits 89, and unknown or unsupported permission permits 79 while remaining eligible. Confirmed/inferred false remains ineligible.
+
+Coverage uses only enabled large-grass, low-dog-traffic, restroom, minimal-detour, fenced-space, good-lighting, and avoid-dedicated-area signals. Supported confirmed values count 1, inferred values 0.5, and unknown/unsupported values 0. Both known true and known false count as evidence; valid low/medium/high traffic values count likewise. Minimal detours counts 1 because the normalized real detour metric is known. Parking and dog permission do not enter preference coverage.
+
+| Unrounded coverage | Match ceiling | Evidence strength |
+| --- | --- | --- |
+| ≥ 75% | 98 | `strong` |
+| ≥ 50%, < 75% | 89 | `moderate` |
+| ≥ 25%, < 50% | 79 | `limited` |
+| < 25% | 69 | `very_limited` |
+
+Public `pawstop.evidenceCoverage` is the coverage ratio rounded to an integer percentage; thresholds use the unrounded ratio. With no enabled preferences, coverage and strength are both `null`, the coverage ceiling is 98, and existing neutral scoring/soft signals remain; the dog-access ceiling still applies. Ceilings never raise a lower existing score. The unchanged timing penalty applies once after calibration. Selection retains `MIN_PLANNED_FIT_SCORE = 60`, so calibration can truthfully create more gaps. Public projection exposes the two new evidence fields, without raw scores, ceiling values, earned points, or denominators. Backend Why explanations and dog-access caveats are preserved.
 
 Confirmed or inferred `dogsAllowed=false` excludes a candidate from recommendations. Unknown dog access stays eligible and is explicitly described as unconfirmed, never safe by assumption. Explanations use existing evidence, label inferred evidence, and describe real detour/timing; unsupported preference matches are never claimed.
 

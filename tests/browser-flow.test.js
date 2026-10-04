@@ -162,3 +162,13 @@ test('hyphenated and underscored normalized place types display as spaces withou
     assert.ok(html.includes(`<span class="type-badge">${label}</span>`));assert.equal(stop.primaryType,primaryType);
   }
 });
+
+test('real cards display only normalized evidence-strength badges alongside match',async()=>{
+  for(const [evidenceStrength,label] of [['strong','STRONG EVIDENCE'],['moderate','MODERATE EVIDENCE'],['limited','LIMITED EVIDENCE'],['very_limited','VERY LIMITED EVIDENCE'],[null,null]]){
+    const stop=normalizedStop();stop.pawstop={...stop.pawstop,evidenceStrength,evidenceCoverage:40,why:['Dog access is not confirmed.']};
+    const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+    assert.match(html,/82% MATCH/);
+    if(label)assert.ok(html.includes(`<span class="evidence-badge">${label}</span>`));else assert.doesNotMatch(html,/class="evidence-badge"/);
+    assert.ok(html.includes('Dog access is not confirmed.'));assert.doesNotMatch(html,/class="dog-access"|40%|confidence percentage|safety confidence/);
+  }
+});

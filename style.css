@@ -113,3 +113,5 @@ input:focus,select:focus{outline:2px solid var(--forest);outline-offset:2px;bord
 .recommendation-nav{display:inline-block;padding:12px 18px;border-radius:9px;background:var(--pine);color:var(--paper);font-size:12px;font-weight:600;text-decoration:none;min-height:44px}
 .recommendation-nav:hover{background:var(--forest)}
 .coverage-gap{border-left-color:var(--line)}
+
+.evidence-badge{font-size:9px;line-height:1.5;letter-spacing:.06em;color:var(--muted);font-weight:500}

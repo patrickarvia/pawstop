@@ -249,6 +249,8 @@ test('Phase 2E exposes normalized enriched stops, partial coverage and counts-on
       assert.equal(stop.provenance.placeId, 'private-place-id');
       assert.equal(stop.route.targetMinutes, 150); assert.equal(stop.route.deltaMinutes, 0);
       assert.equal(stop.pawstop.matchScore, 70); assert.equal(stop.pawstop.plannedFitScore, 70);
+      assert.equal(stop.pawstop.evidenceCoverage, 50); assert.equal(stop.pawstop.evidenceStrength, 'moderate');
+      assert.deepEqual(Object.keys(stop.pawstop), ['matchScore','plannedFitScore','evidenceCoverage','evidenceStrength','why']);
       assert.ok(stop.pawstop.why.includes('Google Places reports that dogs are allowed.'));
       for (const forbidden of ['allowsDogs','parkingOptions','googleMapsUri','routingSummaries','timingPenalty','maxDetourPenalty','extraPrivate','earned','possible','diagnostics','pools']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
       assert.deepEqual(logs.filter(([line])=>line.startsWith('Phase2E')), environment === 'production' ? [] : [
@@ -283,4 +285,19 @@ test('quality floor preserves partial 200 coverage and returns NO_STOP_CANDIDATE
       });
     }
   }
+});
+
+test('Phase 2G sparse route evidence publishes calibrated match and evidence strength through the API',async()=>{
+  await captureDiscoveryLog('production',async()=>{
+    const options=selectable(18000);
+    options.detailsBody={id:'real-stop',restroom:true};
+    const result=await invoke(input(),{routes:[route(18000)]},200,options);
+    assert.equal(result.statusCode,200);
+    const stop=result.body.recommendations[0].stop;
+    assert.equal(stop.pawstop.matchScore,79);assert.equal(stop.pawstop.plannedFitScore,79);
+    assert.equal(stop.pawstop.evidenceCoverage,40);assert.equal(stop.pawstop.evidenceStrength,'limited');
+    assert.ok(stop.pawstop.why.includes('Dog access is not confirmed.'));
+    assert.equal(stop.attributes.dogsAllowed.confidence,'unknown');
+    assert.deepEqual(Object.keys(stop.pawstop),['matchScore','plannedFitScore','evidenceCoverage','evidenceStrength','why']);
+  });
 });

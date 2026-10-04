@@ -23,22 +23,22 @@ for (const [confidence, value, expected] of [['confirmed',true,50],['confirmed',
 }
 test('inferred false has half influence and unknown contributes neither earned nor possible', () => {
   assert.equal(score(candidate('a', { largeGrass: evidence(false, 'inferred'), restrooms: evidence(true) }), { largeGrass: true, restrooms: true }).pawstop.matchScore, 67);
-  assert.equal(score(candidate('a', { restrooms: evidence(true) }), { largeGrass: true, restrooms: true }).pawstop.matchScore, 98);
-  assert.equal(score(candidate(), { largeGrass: true, lowDogTraffic: true, restrooms: true, fencedSpace: true, goodLighting: true, avoidDedicatedReliefAreas: true }).pawstop.matchScore, 70);
+  assert.equal(score(candidate('a', { restrooms: evidence(true) }), { largeGrass: true, restrooms: true }).pawstop.matchScore, 79);
+  assert.equal(score(candidate(), { largeGrass: true, lowDogTraffic: true, restrooms: true, fencedSpace: true, goodLighting: true, avoidDedicatedReliefAreas: true }).pawstop.matchScore, 69);
 });
 for (const [preference, key] of [['largeGrass','largeGrass'], ['restrooms','restrooms'], ['fencedSpace','fenced'], ['goodLighting','lighting']]) {
   test(`preference ${preference} maps only to ${key}`, () => {
-    assert.equal(score(candidate('a', { [key]: evidence(true) }), { [preference]: true }).pawstop.matchScore, 98);
+    assert.equal(score(candidate('a', { [key]: evidence(true) }), { [preference]: true }).pawstop.matchScore, 79);
     assert.equal(score(candidate('a', { [key]: evidence(false) }), { [preference]: true }).pawstop.matchScore, 0);
     assert.equal(score(candidate('a', { [key]: evidence(false) }), { [preference]: false }).pawstop.matchScore, 70);
   });
 }
-for (const [value, expected] of [['low',98],['medium',60],['high',20],[null,70]]) {
+for (const [value, expected] of [['low',79],['medium',60],['high',20],[null,69]]) {
   test(`dog traffic ${value} maps to the requested preference value`, () => {
     assert.equal(score(candidate('a', { dogTraffic: value ? evidence(value) : unknown() }), { lowDogTraffic: true }).pawstop.matchScore, expected);
   });
 }
-for (const [value, confidence, expected] of [[true,'confirmed',0],[false,'confirmed',98],[true,'inferred',0],[false,'inferred',98],[null,'unknown',70]]) {
+for (const [value, confidence, expected] of [[true,'confirmed',0],[false,'confirmed',79],[true,'inferred',0],[false,'inferred',79],[null,'unknown',69]]) {
   test(`dedicated area ${value}/${confidence} uses evidence rather than category absence`, () => {
     const c = candidate('a', { dedicatedDogArea: evidence(value, confidence) });
     assert.equal(score(c, { avoidDedicatedReliefAreas: true }).pawstop.matchScore, expected);
@@ -47,7 +47,7 @@ for (const [value, confidence, expected] of [[true,'confirmed',0],[false,'confir
 }
 test('minimal detour preserves precision, denominator floor, and independent Phase 2C penalty', () => {
   for (const [detour, max, expected] of [[0,10,98],[5,10,70],[3.125,10,81],[1,0,40],[20,10,0]]) {
-    assert.equal(score(candidate('a', {}, 150, detour), { minimalDetours: true }, 'adult', {}, max).pawstop.matchScore, expected);
+    assert.equal(score(candidate('a', { dogsAllowed: evidence(true) }, 150, detour), { minimalDetours: true }, 'adult', {}, max).pawstop.matchScore, expected);
   }
   const c = candidate('a', {}, 150, 12);
   const pair = matchTargets({ candidates: [c], breakTargetsMinutes: [150], breakCadenceMinutes: 150, maxDetourMinutes: 10 }).pools[0].matches[0];
@@ -65,7 +65,7 @@ for (const [value, confidence, expected] of [['low','confirmed',73],['medium','c
 }
 test('senior detour soft signal and rounding/clamping preserve score math', () => {
   for (const [detour, expected] of [[0,73],[3,72],[6,70],[20,67]]) assert.equal(score(candidate('a', {}, 150, detour), {}, 'senior').pawstop.matchScore, expected);
-  assert.equal(score(candidate('a', { restrooms: evidence(true) }), { restrooms: true }).pawstop.matchScore, 98);
+  assert.equal(score(candidate('a', { restrooms: evidence(true) }), { restrooms: true }).pawstop.matchScore, 79);
   const result = score(candidate(), {}, 'adult', { maxDetourPenalty: 100, timingPenalty: 11.125 });
   assert.equal(result.pawstop.matchScore, 0); assert.equal(result.pawstop.plannedFitScore, -11.125);
   assert.equal(score(candidate(), {}, 'adult', { timingPenalty: 0.075 }).pawstop.plannedFitScore, 69.925);
@@ -129,8 +129,8 @@ test('scoring all pools excludes known denied dog access, including inferred den
   assert.equal(result.diagnostics.scored, 3); assert.equal(result.diagnostics.dogExcluded, 2); assert.equal(result.diagnostics.eligible, 1);
 });
 test('changing preferences materially changes the selected stop', () => {
-  const a = candidate('restrooms', { restrooms: evidence(true) }, 150, 1.5);
-  const b = candidate('small-detour', {}, 150, 1);
+  const a = candidate('restrooms', { restrooms: evidence(true), dogsAllowed: evidence(true) }, 150, 1.5);
+  const b = candidate('small-detour', { dogsAllowed: evidence(true) }, 150, 1);
   const pools = [{ targetMinutes: 150, matches: [match(a), match(b)] }];
   const winner = preferences => selectStops(scoreTargetPools(pools, options(preferences)), options()).recommendations[0].stop.id;
   assert.equal(winner({ restrooms: true, minimalDetours: true }), 'restrooms');
@@ -176,4 +176,77 @@ test('low-fit pools create gaps, count each skipped pair and preserve uniqueness
   assert.equal(result.diagnostics.belowFitThreshold, 2);
   assert.equal(result.diagnostics.reusedSkipped, 1); assert.equal(result.diagnostics.chronologySkipped, 1);
   assert.equal(result.diagnostics.scored, 6); assert.equal(result.diagnostics.eligible, 6);
+});
+
+const allPreferences={largeGrass:true,lowDogTraffic:true,restrooms:true,minimalDetours:true,fencedSpace:true,goodLighting:true,avoidDedicatedReliefAreas:true};
+const positiveAttributes={largeGrass:evidence(true),dogTraffic:evidence('low'),restrooms:evidence(true),fenced:evidence(true),lighting:evidence(true),dedicatedDogArea:evidence(false),dogsAllowed:evidence(true)};
+test('dog-access ceilings bound strong fit without denying unknown access',()=>{
+  for(const [dogs,expected,eligible] of [[evidence(true),98,true],[evidence(true,'inferred'),89,true],[unknown(),79,true],[evidence(true,'unknown'),79,true],[evidence(null),79,true],[evidence(false),79,false],[evidence(false,'inferred'),79,false]]){
+    const result=score(candidate('a',{...positiveAttributes,dogsAllowed:dogs}),allPreferences);
+    assert.equal(result.pawstop.matchScore,expected);assert.equal(result.eligible,eligible);
+    assert.equal(result.pawstop.evidenceCoverage,100);assert.equal(result.pawstop.evidenceStrength,'strong');
+  }
+});
+test('ceilings are minima, not deductions, and timing is applied once afterward',()=>{
+  const c=candidate('a',{...positiveAttributes,dogsAllowed:unknown()});
+  const result=score(c,allPreferences,'adult',{maxDetourPenalty:37,timingPenalty:11.125});
+  assert.equal(result.pawstop.matchScore,63);assert.equal(result.pawstop.plannedFitScore,51.875);
+  const capped=score(c,allPreferences,'adult',{timingPenalty:11.125});
+  assert.equal(capped.pawstop.matchScore,79);assert.equal(capped.pawstop.plannedFitScore,67.875);
+});
+test('coverage boundaries use supported confirmed/inferred values including known negatives',()=>{
+  const preferences={largeGrass:true,restrooms:true,fencedSpace:true,goodLighting:true};
+  for(const [weight,coverage,strength,ceiling] of [[0,0,'very_limited',69],[.5,13,'very_limited',69],[1,25,'limited',79],[1.5,38,'limited',79],[2,50,'moderate',89],[2.5,63,'moderate',89],[3,75,'strong',98],[3.5,88,'strong',98],[4,100,'strong',98]]){
+    const attributes={dogsAllowed:evidence(true)};let remaining=weight;
+    for(const key of ['largeGrass','restrooms','fenced','lighting']){
+      attributes[key]=remaining>=1?evidence(true):remaining>0?evidence(true,'inferred'):unknown();remaining=Math.max(0,remaining-1);
+    }
+    const result=score(candidate('a',attributes),preferences).pawstop;
+    assert.equal(result.evidenceCoverage,coverage);assert.equal(result.evidenceStrength,strength);
+    assert.equal(result.matchScore,weight===0?69:ceiling);
+  }
+  const negative=score(candidate('a',{...positiveAttributes,restrooms:evidence(false)}),{restrooms:true,largeGrass:true}).pawstop;
+  assert.equal(negative.evidenceCoverage,100);assert.equal(negative.matchScore,50);
+  const inferred=score(candidate('a',{dogsAllowed:evidence(true),restrooms:evidence(false,'inferred'),largeGrass:evidence(true)}),{restrooms:true,largeGrass:true}).pawstop;
+  assert.equal(inferred.evidenceCoverage,75);assert.equal(inferred.matchScore,67);
+});
+test('40/60/80 percent coverage examples and the sparse live pattern are calibrated',()=>{
+  const preferences={largeGrass:true,lowDogTraffic:true,restrooms:true,minimalDetours:true,avoidDedicatedReliefAreas:true};
+  for(const [extra,coverage,strength,ceiling] of [[{},40,'limited',79],[{largeGrass:evidence(true)},60,'moderate',89],[{largeGrass:evidence(true),dogTraffic:evidence('low')},80,'strong',98]]){
+    const c=candidate('a',{dogsAllowed:evidence(true),restrooms:evidence(true),...extra});
+    const result=score(c,preferences).pawstop;
+    assert.equal(result.evidenceCoverage,coverage);assert.equal(result.evidenceStrength,strength);assert.equal(result.matchScore,ceiling);
+  }
+  const c=candidate('live-pattern',{restrooms:evidence(true)},150,1.5);
+  const result=score(c,preferences,'puppy').pawstop;
+  assert.equal(result.matchScore,79);assert.equal(result.evidenceCoverage,40);assert.equal(result.evidenceStrength,'limited');
+});
+test('coverage ignores disabled signals, parking and dog permission; rejects unsupported values',()=>{
+  const c=candidate('a',{dogsAllowed:evidence(true),parking:evidence(true),largeGrass:evidence('yes'),dogTraffic:evidence('busy'),restrooms:evidence(true,'unknown'),dedicatedDogArea:evidence(null)});
+  const result=score(c,{largeGrass:true,lowDogTraffic:true,restrooms:true,avoidDedicatedReliefAreas:true}).pawstop;
+  assert.equal(result.evidenceCoverage,0);assert.equal(result.evidenceStrength,'very_limited');assert.equal(result.matchScore,69);
+  const detour=score(c,{minimalDetours:true}).pawstop;
+  assert.equal(detour.evidenceCoverage,100);assert.equal(detour.matchScore,98);
+  const none=score(c,{largeGrass:false,restrooms:false}).pawstop;
+  assert.equal(none.evidenceCoverage,null);assert.equal(none.evidenceStrength,null);assert.equal(none.matchScore,70);
+});
+test('all inferred positive preferences count half and no-preference soft signals remain neutral',()=>{
+  const attributes=Object.fromEntries(Object.entries(positiveAttributes).map(([key,a])=>[key,evidence(a.value,'inferred')]));attributes.dogsAllowed=evidence(true);
+  const result=score(candidate('a',attributes),{...allPreferences,minimalDetours:false}).pawstop;
+  assert.equal(result.evidenceCoverage,50);assert.equal(result.evidenceStrength,'moderate');assert.equal(result.matchScore,89);
+  for(const dogsAllowed of [unknown(),evidence(true),evidence(true,'inferred')]){
+    const none=score(candidate('a',{dogsAllowed}),{},'senior').pawstop;
+    assert.equal(none.matchScore,73);assert.equal(none.evidenceCoverage,null);assert.equal(none.evidenceStrength,null);
+  }
+});
+test('calibrated fit selects stronger evidence and creates truthful below-floor gaps',()=>{
+  const preferences={largeGrass:true,lowDogTraffic:true,restrooms:true,minimalDetours:true,avoidDedicatedReliefAreas:true};
+  const sparse=candidate('sparse',{restrooms:evidence(true),dogsAllowed:evidence(true)},150,0);
+  const strong=candidate('strong',positiveAttributes,150,3);
+  const pools=[{targetMinutes:150,matches:[match(sparse),match(strong)]},{targetMinutes:300,matches:[match(candidate('weak',{restrooms:evidence(true)},300),{targetMinutes:300,timingPenalty:20})]}];
+  const result=selectStops(scoreTargetPools(pools,options(preferences)),options());
+  assert.deepEqual(result.recommendations.map(r=>r.stop?.id??null),['strong',null]);
+  assert.equal(result.diagnostics.belowFitThreshold,1);
+  assert.deepEqual(Object.keys(result.recommendations[0].stop.pawstop),['matchScore','plannedFitScore','evidenceCoverage','evidenceStrength','why']);
+  assert.equal(result.recommendations[0].stop.pawstop.evidenceCoverage,100);
 });

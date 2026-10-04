@@ -178,7 +178,7 @@ test('already aborted request starts no work; mid-request abort prevents queued 
   } finally { global.fetch = oldFetch; if (oldKey === undefined) delete process.env.GOOGLE_MAPS_API_KEY; else process.env.GOOGLE_MAPS_API_KEY = oldKey; }
 });
 
-const reviews = (first, second = `${first}. On another visit.`) => [first,second].map(text => ({text:{text,languageCode:'en'},publishTime:new Date(Date.now()-86400000).toISOString(),authorAttribution:{displayName:'PRIVATE-REVIEWER'},rating:5}));
+const reviews = (first, second = `${first}. On another visit.`) => [first,second].map(text => ({originalText:{text,languageCode:'en'},publishTime:new Date(Date.now()-86400000).toISOString(),authorAttribution:{displayName:'PRIVATE-REVIEWER'},rating:5}));
 test('structured dog access and dedicated category always beat conflicting review consensus',async()=>{
   for(const allowsDogs of [true,false]){
     await provider(id=>ok({id,allowsDogs,reviews:reviews(allowsDogs?'dogs not allowed':'dogs allowed')}),async({signal})=>{
@@ -252,5 +252,14 @@ test('review evidence naturally changes Phase 2G score ceilings, coverage, eligi
     const c=(await enrichCandidates([base],{signal})).results[0].candidate;
     const expected={...base,attributes:{...base.attributes,dogsAllowed:{value:true,confidence:'confirmed',evidence:'Google Places reports that dogs are allowed.'}}};
     assert.deepEqual(scoreStop(c,pair(c),options),scoreStop(expected,pair(expected),options));
+  });
+});
+
+test('neither original nor localized raw review text enters normalized enrichment output',async()=>{
+  const entries=reviews('dogs allowed. ORIGINAL-PRIVATE-TEXT').map(r=>({...r,text:{text:'not dog friendly. LOCALIZED-PRIVATE-TEXT',languageCode:'en'}}));
+  await provider(id=>ok({id,reviews:entries}),async({signal})=>{
+    const result=await enrichCandidates([candidate('a')],{signal});
+    assert.equal(result.results[0].candidate.attributes.dogsAllowed.value,true);
+    for(const forbidden of ['ORIGINAL-PRIVATE-TEXT','LOCALIZED-PRIVATE-TEXT','originalText','"text":'])assert.ok(!JSON.stringify(result).includes(forbidden));
   });
 });

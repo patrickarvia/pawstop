@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {qualifyingReviewTexts,reviewSignals,inferFromReviewConsensus,MAX_REVIEW_LENGTH}=require('../lib/review-evidence');
 const now=Date.parse('2026-10-04T12:00:00Z');
-const review=(text,extra={})=>({text:{text,languageCode:'en'},publishTime:'2026-09-01T12:00:00Z',...extra});
+const review=(text,extra={})=>({originalText:{text,languageCode:'en'},publishTime:'2026-09-01T12:00:00Z',...extra});
 const pair=(text)=>[review(text),review(`${text}. A second visit.`)];
 const infer=(reviews)=>inferFromReviewConsensus(reviews,now);
 const unknown={value:null,confidence:'unknown'};
@@ -23,11 +23,11 @@ test('single reviews, duplicate bodies/identities, vague mentions, and conflicts
   assert.deepEqual(infer(pair('dogs allowed. But no dogs on the trail.')).dogsAllowed,unknown);
 });
 test('eligibility requires bounded English text and a strict recent timestamp',()=>{
-  for(const bad of [null,{},[],review(''),review('  '),review('dogs allowed',{text:{text:'dogs allowed',languageCode:'fr'}}),review('dogs allowed',{text:{text:'dogs allowed'}}),review('dogs allowed',{text:{text:5,languageCode:'en'}}),review('dogs allowed',{publishTime:'bad'}),review('dogs allowed',{publishTime:'2026-02-30T12:00:00Z'}),review('dogs allowed',{publishTime:'2023-10-04T11:59:59Z'}),review('dogs allowed',{publishTime:'2026-10-04T12:00:01Z'}),review('dogs allowed',{publishTime:'2026-10-04'}),review('dogs allowed',{publishTime:'2026-10-04T25:00:00Z'}),review('dogs allowed',{text:{text:'x'.repeat(MAX_REVIEW_LENGTH+1),languageCode:'en'}}),review('dogs allowed\u0000')]){
+  for(const bad of [null,{},[],review(''),review('  '),review('dogs allowed',{originalText:{text:'dogs allowed',languageCode:'fr'}}),review('dogs allowed',{originalText:{text:'dogs allowed'}}),review('dogs allowed',{originalText:{text:5,languageCode:'en'}}),review('dogs allowed',{publishTime:'bad'}),review('dogs allowed',{publishTime:'2026-02-30T12:00:00Z'}),review('dogs allowed',{publishTime:'2023-10-04T11:59:59Z'}),review('dogs allowed',{publishTime:'2026-10-04T12:00:01Z'}),review('dogs allowed',{publishTime:'2026-10-04'}),review('dogs allowed',{publishTime:'2026-10-04T25:00:00Z'}),review('dogs allowed',{originalText:{text:'x'.repeat(MAX_REVIEW_LENGTH+1),languageCode:'en'}}),review('dogs allowed\u0000')]){
     assert.deepEqual(qualifyingReviewTexts([bad],now),[]);
     assert.deepEqual(infer([review('dogs allowed'),bad]).dogsAllowed,unknown);
   }
-  assert.equal(qualifyingReviewTexts([review('dogs allowed',{publishTime:'2023-10-04T12:00:00Z',text:{text:'dogs allowed',languageCode:'en-US'}})],now).length,1);
+  assert.equal(qualifyingReviewTexts([review('dogs allowed',{publishTime:'2023-10-04T12:00:00Z',originalText:{text:'dogs allowed',languageCode:'en-US'}})],now).length,1);
   assert.deepEqual(infer([review('unrelated'),review('unrelated 2'),review('unrelated 3'),review('unrelated 4'),review('dogs allowed'),review('dogs welcome')]).dogsAllowed,unknown);
   assert.deepEqual(qualifyingReviewTexts({},now),[]);
   assert.equal(qualifyingReviewTexts(pair('dogs allowed'),NaN).length,0);
@@ -76,4 +76,25 @@ test('36-month calendar cutoff handles leap day deterministically',()=>{
   const leapNow=Date.parse('2024-02-29T12:00:00Z');
   assert.equal(qualifyingReviewTexts([review('dogs allowed',{publishTime:'2021-02-28T12:00:00Z'})],leapNow).length,1);
   assert.equal(qualifyingReviewTexts([review('dogs allowed',{publishTime:'2021-02-28T11:59:59Z'})],leapNow).length,0);
+});
+
+test('English original text qualifies regardless of localized text; regional English is accepted',()=>{
+  for(const languageCode of ['en','en-US','en-GB']){
+    const entries=pair('dogs allowed').map(r=>({...r,originalText:{...r.originalText,languageCode},text:{text:'perros prohibidos',languageCode:'es'}}));
+    assert.equal(qualifyingReviewTexts(entries,now).length,2);
+    assert.equal(infer(entries).dogsAllowed.value,true);
+  }
+});
+test('localized English translations cannot establish consensus from Spanish originals',()=>{
+  const entries=['Se permiten perros.','Los perros son bienvenidos.'].map(text=>review(text,{originalText:{text,languageCode:'es'},text:{text:'Dogs allowed. Large grassy area. Fully fenced.',languageCode:'en'}}));
+  assert.deepEqual(qualifyingReviewTexts(entries,now),[]);
+  for(const attribute of Object.values(infer(entries))) assert.deepEqual(attribute,unknown);
+  assert.deepEqual(infer([review('dogs allowed'),...entries]).dogsAllowed,unknown);
+});
+test('missing or malformed original text never falls back to localized English',()=>{
+  for(const originalText of [undefined,null,{},[],{text:'dogs allowed'}, {text:5,languageCode:'en'}, {text:'',languageCode:'en'}, {text:'dogs allowed',languageCode:'es'}]){
+    const entries=[1,2].map(i=>review('ignored',{originalText,text:{text:`dogs allowed. Visit ${i}.`,languageCode:'en'}}));
+    assert.deepEqual(qualifyingReviewTexts(entries,now),[]);
+    assert.deepEqual(infer(entries).dogsAllowed,unknown);
+  }
 });

@@ -307,7 +307,7 @@ test('Phase 2H projects only normalized review evidence and verification; diagno
     await captureDiscoveryLog(environment,async logs=>{
       const options=selectable(18000);
       const phrases=['Dogs allowed. Large grassy area. Few dogs. Fully fenced. Well lit. Dedicated dog area. PRIVATE-REVIEW-TEXT', 'Dogs welcome. Open field. Low dog traffic. Enclosed by fence. Good lighting. Dog run. OTHER-PRIVATE-TEXT'];
-      options.detailsBody={id:'real-stop',restroom:true,websiteUri:'https://example.org/park',reviews:phrases.map((text,i)=>({name:`PRIVATE-REVIEW-ID-${i}`,text:{text,languageCode:'en'},publishTime:new Date(Date.now()-86400000).toISOString(),rating:5,authorAttribution:{displayName:'PRIVATE-REVIEWER',uri:`https://example.org/reviewer-${i}`}}))};
+      options.detailsBody={id:'real-stop',restroom:true,websiteUri:'https://example.org/park',reviews:phrases.map((text,i)=>({name:`PRIVATE-REVIEW-ID-${i}`,originalText:{text,languageCode:'en'},text:{text:'LOCALIZED-PRIVATE-TEXT',languageCode:'en'},publishTime:new Date(Date.now()-86400000).toISOString(),rating:5,authorAttribution:{displayName:'PRIVATE-REVIEWER',uri:`https://example.org/reviewer-${i}`}}))};
       const body=input();body.preferences.avoidDedicatedReliefAreas=false;
       const result=await invoke(body,{routes:[route(18000)]},200,options);
       assert.equal(result.statusCode,200);assert.equal(result.details.length,1);
@@ -316,8 +316,8 @@ test('Phase 2H projects only normalized review evidence and verification; diagno
       assert.equal(stop.pawstop.matchScore,89);assert.equal(stop.pawstop.evidenceCoverage,75);assert.equal(stop.pawstop.evidenceStrength,'strong');
       assert.deepEqual(stop.verification,{placeWebsiteUrl:'https://example.org/park'});
       assert.deepEqual(Object.keys(stop.verification),['placeWebsiteUrl']);
-      for(const forbidden of ['PRIVATE-REVIEW','OTHER-PRIVATE','reviewer-','"reviews":','rating','publishTime','authorAttribution','reviewAttributes','websiteUri']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
-      for(const forbidden of ['PRIVATE','real-stop','https://','example.org','Dogs allowed','Large grassy','reviewer']) assert.ok(!JSON.stringify(logs).includes(forbidden));
+      for(const forbidden of ['PRIVATE-REVIEW','OTHER-PRIVATE','LOCALIZED-PRIVATE','reviewer-','"reviews":','rating','publishTime','authorAttribution','originalText','reviewAttributes','websiteUri']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
+      for(const forbidden of ['PRIVATE','originalText','real-stop','https://','example.org','Dogs allowed','Large grassy','reviewer']) assert.ok(!JSON.stringify(logs).includes(forbidden));
       if(environment==='production')assert.deepEqual(logs,[]);
       else{
         const diagnostic=logs.find(([line])=>line.startsWith('Phase2D'))[0];

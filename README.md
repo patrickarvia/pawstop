@@ -1,4 +1,4 @@
-# Pawstop V2.2 Phase 2G
+# Pawstop V2.2 Phase 2H
 
 Pawstop is a dog-first road-trip stop planning prototype built with plain HTML, CSS, and JavaScript. Architecture: [V2.2 API contract](docs/v2.2-api-contract.md).
 
@@ -10,7 +10,21 @@ The frontend now renders real itinerary recommendations directly from the normal
 
 Routes use `DRIVE` and `TRAFFIC_UNAWARE`, returning `trafficAware: false`. Targets are positive cadence multiples strictly before arrival and exclude dwell time and cumulative detours. Four one-page along-route searches (park, recreation area, picnic area, rest area; up to 20 results each) discover and deduplicate structural candidates. Phase 2B derives trip minutes from the first routing-summary leg and detour from total leg duration minus the baseline. Unusable summaries and negative detours keep structural candidates with unavailable metrics. Phase 2C uses the inclusive half-cadence window and calculates signed delta, timing label, asymmetric timing penalty, and max-detour penalty without changing candidate route metrics.
 
-Phase 2D still enriches only the first five matches per target in deterministic pre-scoring order, deduplicated in first encounter order, capped at 20 candidates with five concurrent requests. Details use `id,allowsDogs,restroom,parkingOptions,googleMapsUri`. Routing, discovery, and enrichment share the same 15-second timeout signal. Explicit dog/restroom booleans become confirmed true or false; supported true parking options confirm parking. Dedicated-dog-area category evidence confirms true, never false from absence. Omitted fields remain unknown. Large grass, dog traffic, fencing, and lighting remain unknown without evidence. Valid navigation is preserved; unavailable navigation is null. Individual unavailable/unusable details retain candidates, while throttling and infrastructure failures remain sanitized.
+Phase 2D still enriches only the first five matches per target in deterministic pre-scoring order, deduplicated in first encounter order, capped at 20 candidates with five concurrent requests. Phase 2H expands the explicit Details mask to `id,allowsDogs,restroom,parkingOptions,googleMapsUri,reviews,websiteUri`. Routing, discovery, and enrichment share the same 15-second timeout signal. Explicit dog/restroom booleans become confirmed true or false; supported true parking options confirm parking. Dedicated-dog-area category evidence confirms true, never false from absence. Omitted fields remain unknown. Large grass, dog traffic, fencing, and lighting remain unknown without qualifying evidence. Valid navigation is preserved; unavailable navigation is null. Individual unavailable/unusable details retain candidates, while throttling and infrastructure failures remain sanitized.
+
+## Phase 2H supplemental place evidence
+
+Structured provider evidence remains confirmed and authoritative. Recent Google Maps review consensus can supplement dog access, substantial grass/open-field space, dog-specific low/high traffic, fencing, lighting, and dedicated dog areas with **inferred** evidence only. It never overrides confirmed true or false. Restrooms and parking still rely on structured fields. No website is fetched or scraped; there are no AI summaries, new services, or additional provider passes. Phase 2G scoring and ceilings are unchanged; inferred weights naturally affect coverage, fit, dog-denial exclusion, ordering, and gaps.
+
+The deterministic parser processes at most the first five returned reviews, rejecting text over 5,000 characters, empty/control-character text, unsupported or missing language codes (only English `en`/regional English), malformed calendar timestamps, future timestamps, and publication older than 36 calendar months. The cutoff is inclusive and uses UTC; leap-day subtraction clamps to the last valid day. Reviews must contain explicit attribute-specific permission or physical descriptions. Generic dog sightings, park/grass mentions, generic quiet/crowded descriptions, and night visits do not qualify. Negation is handled before overlapping positive phrases; questions and hypothetical wording are conservatively ignored.
+
+Inference requires at least two distinct qualifying review bodies supporting the same conclusion and zero opposing signals in qualifying reviews. Duplicate normalized text, review identifiers, or known reviewer identities cannot establish independent consensus. Conflict or silence leaves an attribute unknown unless confirmed structured evidence exists. Dog permission, grass, fencing, and lighting may infer true or false; dog traffic may infer low/high only; dedicated area review evidence may infer true only, never false from absence. Evidence strings are fixed PawStop-authored statements, never review quotations.
+
+Raw review bodies and metadata are processed transiently on the server: they are not persisted, returned, interpolated into HTML/errors, or logged. The public response exposes only normalized attribute evidence and optional `verification: { placeWebsiteUrl }` (otherwise `null`). The website must be HTTPS, credential-free, well formed, whitespace/backslash-free, and at most 2,048 characters. The browser labels it “Place website ↗” for optional user verification; its presence confirms no attribute or policy. Navigation remains separate.
+
+The enrichment budget remains five per target, twenty unique candidates total, and concurrency five with the original shared timeout. Preview/development Phase 2D diagnostics add only `reviewDogsKnown`, `reviewGrassKnown`, `reviewTrafficKnown`, `reviewFencedKnown`, `reviewLightingKnown`, `reviewDedicatedKnown`, and `websiteKnown` counts. Review counters count attributes actually accepted from review consensus, excluding confirmed-field overrides. Production remains silent.
+
+Google lists existing `allowsDogs`, `restroom`, and `parkingOptions`, and newly requested `reviews`, under Place Details Enterprise + Atmosphere; `websiteUri` is Enterprise. This adds response data within the existing requests and can affect payload size and latency; no exact dollar cost is claimed. See [Google’s field and SKU reference](https://developers.google.com/maps/documentation/places/web-service/data-fields) and [Place resource/review schema](https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places). The mask excludes summaries, photos, ratings, and unrelated fields; nested review ratings/attribution returned within `reviews` are ignored and discarded.
 
 ## Evidence-aware scoring and selection
 
@@ -74,6 +88,8 @@ node --check lib/scoring.js
 node --check lib/selection.js
 node --check lib/target-matching.js
 node --check lib/google-enrichment.js
+node --check lib/target-enrichment.js
+node --check lib/review-evidence.js
 node --test tests/*.test.js
 ```
 

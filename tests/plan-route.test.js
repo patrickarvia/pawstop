@@ -111,7 +111,7 @@ test('discovery logs counts-only lines outside production without changing respo
     await captureDiscoveryLog(environment,async logs=>{
       const result=await invoke(input(),undefined,200,options);
       assert.deepEqual(result.body,productionBody);
-      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0'], ['Phase2C matching: targets=5 routed=0 pairs=0 coveredTargets=0 gaps=5 overDetour=0 close=0 early=0 late=0'], ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0'], ['Phase2E selection: targets=5 scored=0 eligible=0 dogExcluded=0 belowFitThreshold=0 selected=0 gaps=5 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']]);
+      assert.deepEqual(logs,[['Phase2A discovery: received=8 candidates=1 duplicates=3 rejected=4'], ['Phase2B routing: candidates=1 routed=0 missing=1 inconsistent=0'], ['Phase2C matching: targets=5 routed=0 pairs=0 coveredTargets=0 gaps=5 overDetour=0 close=0 early=0 late=0'], ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0 reviewDogsKnown=0 reviewGrassKnown=0 reviewTrafficKnown=0 reviewFencedKnown=0 reviewLightingKnown=0 reviewDedicatedKnown=0 websiteKnown=0'], ['Phase2E selection: targets=5 scored=0 eligible=0 dogExcluded=0 belowFitThreshold=0 selected=0 gaps=5 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']]);
     });
   }
 });
@@ -137,7 +137,7 @@ test('real baseline feeds routing diagnostics while raw summaries and candidates
       ['Phase2A discovery: received=12 candidates=3 duplicates=9 rejected=0'],
       ['Phase2B routing: candidates=3 routed=1 missing=1 inconsistent=1 tripMin=11.0 tripMax=11.0 detourMin=11.0 detourMax=11.0'],
       ['Phase2C matching: targets=1 routed=1 pairs=0 coveredTargets=0 gaps=1 overDetour=0 close=0 early=0 late=0'],
-      ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0'],
+      ['Phase2D enrichment: selected=0 requested=0 enriched=0 unchanged=0 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=0 navKnown=0 reviewDogsKnown=0 reviewGrassKnown=0 reviewTrafficKnown=0 reviewFencedKnown=0 reviewLightingKnown=0 reviewDedicatedKnown=0 websiteKnown=0'],
       ['Phase2E selection: targets=1 scored=0 eligible=0 dogExcluded=0 belowFitThreshold=0 selected=0 gaps=1 reusedSkipped=0 chronologySkipped=0 overDetourSelected=0 unknownDogAccessSelected=0']
     ]);
     assert.deepEqual(result.body, { error: { code: 'NO_STOP_CANDIDATES', message: "We couldn't find a suitable Pawstop along this route." } });
@@ -208,7 +208,7 @@ test('Phase 2D diagnostics stay counts only and known dog denial never reaches r
       assert.equal(result.body.error.code, 'NO_STOP_CANDIDATES');
       if (expected) assert.deepEqual(result.body, expected); else expected = result.body;
       assert.deepEqual(logs.filter(([line]) => line.startsWith('Phase2D')), environment === 'production' ? [] : [
-        ['Phase2D enrichment: selected=1 requested=1 enriched=1 unchanged=0 dogsKnown=1 restroomsKnown=1 parkingKnown=1 dedicatedKnown=1 navKnown=1']
+        ['Phase2D enrichment: selected=1 requested=1 enriched=1 unchanged=0 dogsKnown=1 restroomsKnown=1 parkingKnown=1 dedicatedKnown=1 navKnown=1 reviewDogsKnown=0 reviewGrassKnown=0 reviewTrafficKnown=0 reviewFencedKnown=0 reviewLightingKnown=0 reviewDedicatedKnown=0 websiteKnown=0']
       ]);
       if (environment === 'production') assert.deepEqual(logs, []);
       for (const forbidden of ['private-place-id', 'Private dog area', 'attributes', 'googleMaps', 'navigation', 'diagnostics', 'candidate', 'extraPrivate', 'test-only-placeholder']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
@@ -222,7 +222,7 @@ test('Phase 2D unavailable details retain unknown evidence while infrastructure 
     for (const detailsStatus of [404, 410]) {
       const result = await invoke(input(), { routes: [route(12000)] }, 200, { ...enrichmentOptions(), detailsStatus });
       assert.equal(result.statusCode, 422); assert.equal(result.body.error.code, 'NO_STOP_CANDIDATES');
-      assert.equal(logs.filter(([line])=>line.startsWith('Phase2D')).at(-1)[0], 'Phase2D enrichment: selected=1 requested=1 enriched=0 unchanged=1 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=1 navKnown=0');
+      assert.equal(logs.filter(([line])=>line.startsWith('Phase2D')).at(-1)[0], 'Phase2D enrichment: selected=1 requested=1 enriched=0 unchanged=1 dogsKnown=0 restroomsKnown=0 parkingKnown=0 dedicatedKnown=1 navKnown=0 reviewDogsKnown=0 reviewGrassKnown=0 reviewTrafficKnown=0 reviewFencedKnown=0 reviewLightingKnown=0 reviewDedicatedKnown=0 websiteKnown=0');
     }
     for (const [options, status, code] of [[{ detailsStatus: 429 }, 429, 'RATE_LIMITED'], [{ detailsStatus: 403 }, 502, 'PROVIDER_ERROR'], [{ detailsStatus: 503 }, 502, 'PROVIDER_ERROR'], [{ detailsReject: true }, 502, 'PROVIDER_ERROR']]) {
       logs.length = 0;
@@ -300,4 +300,29 @@ test('Phase 2G sparse route evidence publishes calibrated match and evidence str
     assert.equal(stop.attributes.dogsAllowed.confidence,'unknown');
     assert.deepEqual(Object.keys(stop.pawstop),['matchScore','plannedFitScore','evidenceCoverage','evidenceStrength','why']);
   });
+});
+
+test('Phase 2H projects only normalized review evidence and verification; diagnostics contain counts only',async()=>{
+  for(const environment of ['preview','production']){
+    await captureDiscoveryLog(environment,async logs=>{
+      const options=selectable(18000);
+      const phrases=['Dogs allowed. Large grassy area. Few dogs. Fully fenced. Well lit. Dedicated dog area. PRIVATE-REVIEW-TEXT', 'Dogs welcome. Open field. Low dog traffic. Enclosed by fence. Good lighting. Dog run. OTHER-PRIVATE-TEXT'];
+      options.detailsBody={id:'real-stop',restroom:true,websiteUri:'https://example.org/park',reviews:phrases.map((text,i)=>({name:`PRIVATE-REVIEW-ID-${i}`,text:{text,languageCode:'en'},publishTime:new Date(Date.now()-86400000).toISOString(),rating:5,authorAttribution:{displayName:'PRIVATE-REVIEWER',uri:`https://example.org/reviewer-${i}`}}))};
+      const body=input();body.preferences.avoidDedicatedReliefAreas=false;
+      const result=await invoke(body,{routes:[route(18000)]},200,options);
+      assert.equal(result.statusCode,200);assert.equal(result.details.length,1);
+      const stop=result.body.recommendations[0].stop;
+      assert.equal(stop.attributes.dogsAllowed.confidence,'inferred');assert.equal(stop.attributes.largeGrass.confidence,'inferred');
+      assert.equal(stop.pawstop.matchScore,89);assert.equal(stop.pawstop.evidenceCoverage,75);assert.equal(stop.pawstop.evidenceStrength,'strong');
+      assert.deepEqual(stop.verification,{placeWebsiteUrl:'https://example.org/park'});
+      assert.deepEqual(Object.keys(stop.verification),['placeWebsiteUrl']);
+      for(const forbidden of ['PRIVATE-REVIEW','OTHER-PRIVATE','reviewer-','"reviews":','rating','publishTime','authorAttribution','reviewAttributes','websiteUri']) assert.ok(!JSON.stringify(result.body).includes(forbidden));
+      for(const forbidden of ['PRIVATE','real-stop','https://','example.org','Dogs allowed','Large grassy','reviewer']) assert.ok(!JSON.stringify(logs).includes(forbidden));
+      if(environment==='production')assert.deepEqual(logs,[]);
+      else{
+        const diagnostic=logs.find(([line])=>line.startsWith('Phase2D'))[0];
+        for(const counter of ['reviewDogsKnown','reviewGrassKnown','reviewTrafficKnown','reviewFencedKnown','reviewLightingKnown','reviewDedicatedKnown','websiteKnown']) assert.ok(diagnostic.includes(`${counter}=1`));
+      }
+    });
+  }
 });

@@ -107,16 +107,17 @@ test('selection greedily skips reused and non-increasing stops, preserves gaps a
   assert.deepEqual(result.diagnostics, { targets: 4, scored: 6, eligible: 6, dogExcluded: 0, belowFitThreshold: 0, selected: 3, gaps: 1, reusedSkipped: 1, chronologySkipped: 2, overDetourSelected: 1, unknownDogAccessSelected: 3 });
 });
 test('public projection exposes only contract fields, preserves metrics and does not mutate inputs', () => {
-  const c = candidate(); c.navigation = { googleMapsUrl: 'https://maps.google.com/?cid=1', secret: 'hidden' }; c.raw = 'hidden';
+  const c = candidate(); c.navigation = { googleMapsUrl: 'https://maps.google.com/?cid=1', secret: 'hidden' }; c.raw = 'hidden'; c.verification = { placeWebsiteUrl: 'https://example.org/park', secret: 'hidden' };
   c.attributes.largeGrass.raw = 'hidden'; c.provenance.raw = 'hidden';
   const pair = match(c, { targetMinutes: 150, deltaMinutes: 0.125, timingLabel: 'Close to planned break', timingPenalty: 0.125 });
   const pools = [{ targetMinutes: 150, matches: [pair] }]; const before = structuredClone(pools);
   const result = selectStops(scoreTargetPools(pools, options()), { maxDetourMinutes: 10 });
   const stop = result.recommendations[0].stop;
-  assert.deepEqual(Object.keys(stop), ['id','name','primaryType','address','lat','lng','route','pawstop','attributes','navigation','provenance']);
+  assert.deepEqual(Object.keys(stop), ['id','name','primaryType','address','lat','lng','route','pawstop','attributes','navigation','verification','provenance']);
   assert.deepEqual(stop.route, { tripMinutes: 150, detourMinutes: 0, targetMinutes: 150, deltaMinutes: 0.125, timingLabel: 'Close to planned break' });
   assert.equal(stop.pawstop.matchScore, 70); assert.equal(stop.pawstop.plannedFitScore, 69.875); assert.ok(Array.isArray(stop.pawstop.why));
   assert.deepEqual(stop.navigation, { googleMapsUrl: 'https://maps.google.com/?cid=1' });
+  assert.deepEqual(stop.verification, { placeWebsiteUrl: 'https://example.org/park' });
   assert.deepEqual(stop.provenance, { provider: 'synthetic', placeId: 'source-id' });
   for (const forbidden of ['raw','hidden','timingPenalty','maxDetourPenalty','earned','possible','eligible','enrichment','routingSummaries','allowsDogs','parkingOptions','googleMapsUri']) assert.ok(!JSON.stringify(stop).includes(forbidden));
   assert.deepEqual(pools, before);

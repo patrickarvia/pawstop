@@ -91,9 +91,10 @@ function renderRecommendation({targetMinutes,stop},index){
   const dogAccess=dogs?.value===true&&supported(dogs)
     ?dogs.confidence==="confirmed"?"Dog access confirmed":"Dog access inferred · not yet confirmed"
     :"Dog access not yet confirmed";
+  const evidenceLabel={strong:"STRONG EVIDENCE",moderate:"MODERATE EVIDENCE",limited:"LIMITED EVIDENCE",very_limited:"VERY LIMITED EVIDENCE"}[stop.pawstop.evidenceStrength];
   const detour=Math.round(stop.route.detourMinutes);
   return `<article class="stop recommended real-stop">${label}
-    <div class="recommendation-summary"><span class="match">${escapeHtml(stop.pawstop.matchScore)}% MATCH</span>${stop.primaryType?`<span class="type-badge">${escapeHtml(readableType(stop.primaryType))}</span>`:""}</div>
+    <div class="recommendation-summary"><span class="match">${escapeHtml(stop.pawstop.matchScore)}% MATCH</span>${evidenceLabel?`<span class="evidence-badge">${evidenceLabel}</span>`:""}${stop.primaryType?`<span class="type-badge">${escapeHtml(readableType(stop.primaryType))}</span>`:""}</div>
     <h3>${escapeHtml(stop.name)}</h3>
     ${stop.address?`<p class="place">${escapeHtml(stop.address)}</p>`:""}
     <div class="recommendation-timing"><span>${formatMinutes(stop.route.tripMinutes)} from start</span><span>${detour?`+${detour} min detour`:"No estimated route detour"}</span><span>${escapeHtml(stop.route.timingLabel)}</span></div>

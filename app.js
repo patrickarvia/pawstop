@@ -101,6 +101,7 @@ function renderRecommendation({targetMinutes,stop},index){
     ${tags.length?`<div class="tags">${tags.map(tag=>`<span>${escapeHtml(tag)}</span>`).join("")}</div>`:""}
     ${stop.pawstop.why.length?`<div class="why"><strong>Why PawStop picked this</strong><ul>${stop.pawstop.why.map(why=>`<li>${escapeHtml(why)}</li>`).join("")}</ul></div>`:""}
     ${dogAccess!=="Dog access confirmed"&&hasDogAccessCaveat(stop.pawstop.why)?"":`<p class="dog-access">${dogAccess}</p>`}
+    ${stop.verification?.placeWebsiteUrl?`<a class="source-link place-website" href="${escapeHtml(stop.verification.placeWebsiteUrl)}" target="_blank" rel="noopener">Place website ↗</a>`:""}
     <div class="stop-actions">${stop.navigation?.googleMapsUrl?`<a class="recommendation-nav" href="${escapeHtml(stop.navigation.googleMapsUrl)}" target="_blank" rel="noopener">Navigate →</a>`:'<span class="navigation-unavailable">Navigation link unavailable</span>'}</div>
   </article>`;
 }

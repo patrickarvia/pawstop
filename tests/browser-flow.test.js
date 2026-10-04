@@ -172,3 +172,12 @@ test('real cards display only normalized evidence-strength badges alongside matc
     assert.ok(html.includes('Dog access is not confirmed.'));assert.doesNotMatch(html,/class="dog-access"|40%|confidence percentage|safety confidence/);
   }
 });
+
+test('place website is a quiet separate returned verification link without a policy claim',async()=>{
+  const stop=normalizedStop({verification:{placeWebsiteUrl:'https://example.org/park?a=1&b=2'}});
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.ok(html.includes('href="https://example.org/park?a=1&amp;b=2" target="_blank" rel="noopener">Place website ↗'));
+  assert.match(html,/Dog access not yet confirmed/);assert.doesNotMatch(html,/Official policy/);
+  const missing=(await planned([{targetMinutes:150,stop:normalizedStop({verification:null})}])).element('stops').innerHTML;
+  assert.doesNotMatch(missing,/Place website/);
+});

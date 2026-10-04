@@ -18,7 +18,7 @@ async function provider(fn, run) {
   global.fetch = async (url, init) => {
     requests.push({ url, ...init });
     assert.equal(init.method, 'GET');
-    assert.deepEqual(init.headers, { 'X-Goog-Api-Key': 'test-key', 'X-Goog-FieldMask': 'id,allowsDogs,restroom,parkingOptions,googleMapsUri' });
+    assert.deepEqual(init.headers, { 'X-Goog-Api-Key': 'test-key', 'X-Goog-FieldMask': 'id,allowsDogs,restroom,parkingOptions,googleMapsUri,reviews,websiteUri' });
     assert.equal(init.signal, signal);
     return fn(decodeURIComponent(url.split('/').at(-1)), requests.length);
   };
@@ -122,7 +122,7 @@ test('enrichment updates every matching reference without mutating candidates, m
       assert.equal(enriched.candidate.name, original.candidate.name);
     }
     for (const forbidden of ['allowsDogs', 'restroom"', 'parkingOptions', 'googleMapsUri', 'rating', 'rawPrivate', 'matchScore', 'plannedFitScore']) assert.ok(!JSON.stringify(result).includes(forbidden));
-    assert.deepEqual(result.diagnostics, { selected: 2, requested: 2, enriched: 2, unchanged: 0, dogsKnown: 2, restroomsKnown: 2, parkingKnown: 2, dedicatedKnown: 0, navKnown: 2 });
+    assert.deepEqual(result.diagnostics, { selected: 2, requested: 2, enriched: 2, unchanged: 0, dogsKnown: 2, restroomsKnown: 2, parkingKnown: 2, dedicatedKnown: 0, navKnown: 2, reviewDogsKnown: 0, reviewGrassKnown: 0, reviewTrafficKnown: 0, reviewFencedKnown: 0, reviewLightingKnown: 0, reviewDedicatedKnown: 0, websiteKnown: 0 });
   });
 });
 
@@ -176,4 +176,90 @@ test('already aborted request starts no work; mid-request abort prevents queued 
     await assert.rejects(enrichCandidates(Array.from({ length: 20 }, (_, i) => candidate(String(i))), { signal: running.signal }), { message: 'PROVIDER_ERROR' });
     assert.equal(calls, 1);
   } finally { global.fetch = oldFetch; if (oldKey === undefined) delete process.env.GOOGLE_MAPS_API_KEY; else process.env.GOOGLE_MAPS_API_KEY = oldKey; }
+});
+
+const reviews = (first, second = `${first}. On another visit.`) => [first,second].map(text => ({originalText:{text,languageCode:'en'},publishTime:new Date(Date.now()-86400000).toISOString(),authorAttribution:{displayName:'PRIVATE-REVIEWER'},rating:5}));
+test('structured dog access and dedicated category always beat conflicting review consensus',async()=>{
+  for(const allowsDogs of [true,false]){
+    await provider(id=>ok({id,allowsDogs,reviews:reviews(allowsDogs?'dogs not allowed':'dogs allowed')}),async({signal})=>{
+      const result=await enrichCandidates([candidate('a')],{signal});
+      assert.equal(result.results[0].candidate.attributes.dogsAllowed.value,allowsDogs);
+      assert.equal(result.results[0].candidate.attributes.dogsAllowed.confidence,'confirmed');
+      assert.ok(!result.results[0].reviewAttributes?.includes('dogsAllowed'));
+    });
+  }
+  await provider(id=>ok({id,reviews:reviews('no dog park')}),async({signal})=>{
+    const c=candidate('a',{primaryType:'dedicated-dog-area'});
+    const result=await enrichCandidates([c],{signal});
+    assert.equal(result.results[0].candidate.attributes.dedicatedDogArea.confidence,'confirmed');
+    assert.equal(result.results[0].candidate.attributes.dedicatedDogArea.value,true);
+  });
+});
+test('review consensus yields six normalized inferred attributes and count-only diagnostics',async()=>{
+  const body='dogs allowed, large grassy area, few dogs, fully fenced, well lit, dedicated dog area';
+  await provider(id=>ok({id,reviews:reviews(`${body}. PRIVATE-REVIEW-FRAGMENT`),websiteUri:'https://example.org/park'}),async({signal,requests})=>{
+    const result=await enrichTargetPools([pool([candidate('a')])],{signal});
+    assert.equal(requests.length,1);
+    const c=result.results[0].candidate;
+    for(const key of ['dogsAllowed','largeGrass','dogTraffic','fenced','lighting','dedicatedDogArea']) assert.equal(c.attributes[key].confidence,'inferred');
+    assert.equal(c.attributes.dogTraffic.value,'low');assert.deepEqual(c.verification,{placeWebsiteUrl:'https://example.org/park'});
+    for(const key of ['reviewDogsKnown','reviewGrassKnown','reviewTrafficKnown','reviewFencedKnown','reviewLightingKnown','reviewDedicatedKnown','websiteKnown']) assert.equal(result.diagnostics[key],1);
+    assert.ok(Object.values(result.diagnostics).every(Number.isInteger));
+    for(const forbidden of ['PRIVATE-REVIEW-FRAGMENT','PRIVATE-REVIEWER','rating','publishTime','languageCode','"reviews":']) assert.ok(!JSON.stringify(result).includes(forbidden));
+  });
+});
+test('website validation is HTTPS-only and never supplies dog evidence or additional requests',async()=>{
+  const valid=['https://example.org/park?ref=maps','https://example.org:8443/'];
+  for(const websiteUri of [...valid,undefined,null,{},'bad','http://example.org','javascript:alert(1)','https://user:pass@example.org',' https://example.org','https://example.org/a b','https://example.org/\\evil','https://example.org/\n','https://example.org/'+ 'x'.repeat(2049)]){
+    await provider(id=>ok({id,websiteUri}),async({signal,requests})=>{
+      const c=(await enrichCandidates([candidate('a')],{signal})).results[0].candidate;
+      assert.deepEqual(c.verification,valid.includes(websiteUri)?{placeWebsiteUrl:websiteUri}:undefined);
+      assert.deepEqual(c.attributes.dogsAllowed,unknown());assert.equal(requests.length,1);
+    });
+  }
+});
+test('mismatched provider identity never supplies reviews or website',async()=>{
+  await provider(()=>ok({id:'other',reviews:reviews('dogs allowed'),websiteUri:'https://example.org'}),async({signal})=>{
+    const c=(await enrichCandidates([candidate('a')],{signal})).results[0].candidate;
+    assert.deepEqual(c.attributes.dogsAllowed,unknown());assert.equal(c.verification,undefined);
+  });
+});
+test('review evidence naturally changes Phase 2G score ceilings, coverage, eligibility and selection',async()=>{
+  const {scoreStop,scoreTargetPools}=require('../lib/scoring');const {selectStops}=require('../lib/selection');
+  const preferences={largeGrass:true,restrooms:true,minimalDetours:true};
+  const options={preferences,lifeStage:'adult',maxDetourMinutes:10};
+  const base=candidate('a');base.route.detourMinutes=0;base.attributes.restrooms={value:true,confidence:'confirmed'};
+  const pair=c=>({...pool([c]).matches[0],timingPenalty:0,maxDetourPenalty:0});
+  const before=scoreStop(base,pair(base),options);assert.equal(before.pawstop.matchScore,79);
+  await provider(id=>ok({id,reviews:reviews('dogs allowed. large grassy area')}),async({signal})=>{
+    const c=(await enrichCandidates([base],{signal})).results[0].candidate;
+    const after=scoreStop(c,pair(c),options);
+    assert.equal(after.pawstop.matchScore,89);assert.equal(after.pawstop.evidenceCoverage,83);assert.equal(after.pawstop.evidenceStrength,'strong');
+    const pools=[{targetMinutes:150,matches:[pair(base),pair(c)]}];
+    const chosen=selectStops(scoreTargetPools(pools,options),options).recommendations[0].stop;
+    assert.equal(chosen.pawstop.matchScore,89);assert.equal(chosen.attributes.dogsAllowed.confidence,'inferred');
+  });
+  await provider(id=>ok({id,reviews:reviews('no dogs')}),async({signal})=>{
+    const c=(await enrichCandidates([base],{signal})).results[0].candidate;
+    assert.equal(scoreStop(c,pair(c),options).eligible,false);
+    assert.equal(selectStops(scoreTargetPools([{targetMinutes:150,matches:[pair(c)]}],options),options).recommendations[0].stop,null);
+  });
+  await provider(id=>ok({id,reviews:[...reviews('dogs allowed'),...reviews('no dogs')]}),async({signal})=>{
+    const c=(await enrichCandidates([base],{signal})).results[0].candidate;
+    assert.deepEqual(c.attributes.dogsAllowed,unknown());assert.equal(scoreStop(c,pair(c),options).pawstop.matchScore,79);
+  });
+  await provider(id=>ok({id,allowsDogs:true,reviews:reviews('no dogs')}),async({signal})=>{
+    const c=(await enrichCandidates([base],{signal})).results[0].candidate;
+    const expected={...base,attributes:{...base.attributes,dogsAllowed:{value:true,confidence:'confirmed',evidence:'Google Places reports that dogs are allowed.'}}};
+    assert.deepEqual(scoreStop(c,pair(c),options),scoreStop(expected,pair(expected),options));
+  });
+});
+
+test('neither original nor localized raw review text enters normalized enrichment output',async()=>{
+  const entries=reviews('dogs allowed. ORIGINAL-PRIVATE-TEXT').map(r=>({...r,text:{text:'not dog friendly. LOCALIZED-PRIVATE-TEXT',languageCode:'en'}}));
+  await provider(id=>ok({id,reviews:entries}),async({signal})=>{
+    const result=await enrichCandidates([candidate('a')],{signal});
+    assert.equal(result.results[0].candidate.attributes.dogsAllowed.value,true);
+    for(const forbidden of ['ORIGINAL-PRIVATE-TEXT','LOCALIZED-PRIVATE-TEXT','originalText','"text":'])assert.ok(!JSON.stringify(result).includes(forbidden));
+  });
 });

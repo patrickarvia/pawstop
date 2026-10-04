@@ -101,3 +101,17 @@ input:focus,select:focus{outline:2px solid var(--forest);outline-offset:2px;bord
 .urgent-status.warning{color:#80473C;background:#F5E9E3;border:1px solid #D7B6AA;border-left:3px solid var(--danger)}
 @media(max-width:410px){main{padding-top:24px}.brand{font-size:12px}.version{font-size:8px}h1{font-size:46px}h2{font-size:30px}.card,.hero-card{padding:20px}.two{grid-template-columns:1fr}.trip-summary div{padding:0 10px}.trip-summary strong{font-size:11px}.trip-summary span{font-size:8px}.time-pill{font-size:11px}.stop-head{flex-wrap:wrap}.match{align-self:flex-start}#urgentName{font-size:29px}}
 @media(max-width:340px){main{padding-left:14px;padding-right:14px}.trip-summary{grid-template-columns:1fr;padding:0 14px}.trip-summary div{padding:12px 0}.trip-summary div+div{border-left:0;border-top:1px solid #C7D5CA}.community-grid{grid-template-columns:1fr;padding:0 12px}.report{padding:12px 0}.report+.report{border-left:0;border-top:1px solid var(--line)}.time-pill{font-size:10px}}
+
+/* Real itinerary recommendations retain the premium paper and pine hierarchy. */
+.real-stop{overflow-wrap:anywhere}
+.recommendation-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.real-stop h3{font-family:Georgia,"Times New Roman",serif;font-size:25px;font-weight:400;color:var(--pine);letter-spacing:-.025em}
+.recommendation-timing{display:flex;flex-wrap:wrap;gap:6px 16px;margin:18px 0;font-size:12px;line-height:1.65;color:var(--forest)}
+.recommendation-timing span:last-child{flex-basis:100%;color:var(--muted)}
+.real-stop .why{padding:16px;margin:20px 0 14px}
+.real-stop .why ul{padding-left:17px;margin:10px 0 0;font-size:12px;line-height:1.7;color:var(--forest)}
+.real-stop .why li+li{margin-top:6px}
+.dog-access,.navigation-unavailable{font-size:11px;line-height:1.65;color:var(--muted)}
+.recommendation-nav{display:inline-block;padding:12px 18px;border-radius:9px;background:var(--pine);color:var(--paper);font-size:12px;font-weight:600;text-decoration:none;min-height:44px}
+.recommendation-nav:hover{background:var(--forest)}
+.coverage-gap{border-left-color:var(--line)}

@@ -70,3 +70,62 @@ test('NO_STOP_CANDIDATES uses the friendly allowlisted message and allows retry'
   assert.equal(b.element('planError').textContent, "We couldn't find a suitable Pawstop along this route.");
   assert.equal(b.element('planBtn').disabled, false);
 });
+
+function normalizedStop(overrides={}){
+  return {id:'real-1',name:'Riverside Meadow',primaryType:'recreation_area',address:'12 River Road',
+    route:{tripMinutes:144.4,detourMinutes:6.2,targetMinutes:150,deltaMinutes:-5.6,timingLabel:'Close to planned break'},
+    pawstop:{matchScore:82,plannedFitScore:79.5,why:['Reported restrooms available.','Inferred: open grass.']},
+    attributes:{restrooms:{value:true,confidence:'confirmed'},parking:{value:true,confidence:'confirmed'},largeGrass:{value:true,confidence:'inferred'},dogsAllowed:{value:null,confidence:'unknown'},fenced:{value:false,confidence:'confirmed'},lighting:{value:true,confidence:'unknown'},dogTraffic:{value:'low',confidence:'inferred'},dedicatedDogArea:{value:null,confidence:'unknown'}},
+    navigation:{googleMapsUrl:'https://maps.google.com/?cid=123&mode=driving'},provenance:{provider:'google',placeId:'private-place-id'},...overrides};
+}
+async function planned(recommendations){
+  const b=browser(async()=>({ok:true,json:async()=>({route:{durationMinutes:500,distanceMeters:700000},breakTargetsMinutes:recommendations.map(r=>r.targetMinutes),recommendations})}));
+  await b.element('planBtn').onclick();return b;
+}
+test('normalized recommendation renders identity, product match, real timing, and backend explanations',async()=>{
+  const stop=normalizedStop();const before=JSON.stringify(stop);
+  const b=await planned([{targetMinutes:150,stop}]);const html=b.element('stops').innerHTML;
+  for(const text of ['PLANNED BREAK 1 · 2h 30m','Riverside Meadow','Recreation area','12 River Road','82% MATCH','2h 24m from start','+6 min detour','Close to planned break','Reported restrooms available.','Inferred: open grass.','Restrooms','Parking','Large grass · inferred','Low dog traffic · inferred','Dog access not yet confirmed']) assert.ok(html.includes(text),text);
+  assert.ok(html.includes('href="https://maps.google.com/?cid=123&amp;mode=driving" target="_blank" rel="noopener"'));
+  assert.doesNotMatch(html,/79\.5|private-place-id|Lighting|No restrooms|dog-friendly|Hess/);
+  assert.equal(JSON.stringify(stop),before);
+  assert.equal(b.element('routeFrom').textContent,'New York, NY');assert.equal(b.element('routeTo').textContent,'Boston, MA');
+  assert.equal(b.element('dogName').textContent,'Conan');assert.equal(b.element('profile').textContent,'Puppy');
+  assert.equal(b.element('breakPlan').textContent,'Every 2h 30m');assert.equal(b.element('maxDetour').textContent,'10 min');
+});
+test('optional fields and null navigation are omitted safely; zero detour and confirmed dog access are explicit',async()=>{
+  const stop=normalizedStop({primaryType:null,address:null,navigation:null});
+  stop.route.detourMinutes=.2;stop.attributes.dogsAllowed={value:true,confidence:'confirmed'};
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.match(html,/No estimated route detour/);assert.match(html,/Navigation link unavailable/);
+  assert.match(html,/Dogs allowed/);assert.match(html,/Dog access confirmed/);
+  assert.doesNotMatch(html,/href=|Recreation area|12 River Road/);
+});
+test('inferred dog permission stays labeled and partial coverage preserves API itinerary order',async()=>{
+  const first=normalizedStop();first.attributes.dogsAllowed={value:true,confidence:'inferred'};
+  const last=normalizedStop({id:'real-2',name:'Later Park'});last.route={tripMinutes:460,detourMinutes:14,targetMinutes:450,deltaMinutes:10,timingLabel:'Returned timing label'};
+  const html=(await planned([{targetMinutes:150,stop:first},{targetMinutes:300,stop:null},{targetMinutes:450,stop:last}])).element('stops').innerHTML;
+  assert.match(html,/Dogs allowed · inferred/);assert.match(html,/Dog access inferred · not yet confirmed/);
+  assert.match(html,/PLANNED BREAK 2 · 5h 0m/);assert.match(html,/No suitable PawStop found/);
+  assert.match(html,/current evidence and planning threshold/);assert.match(html,/Returned timing label/);
+  assert.match(html,/\+14 min detour/);assert.ok(html.indexOf('Riverside Meadow')<html.indexOf('No suitable PawStop'));assert.ok(html.indexOf('No suitable PawStop')<html.indexOf('Later Park'));
+  assert.doesNotMatch(html,/provider failure|Stop location not yet available/);
+});
+test('public strings are escaped instead of interpreted as markup',async()=>{
+  const stop=normalizedStop({name:'<img onerror="bad">',address:'A & B'});stop.pawstop.why=['<script>bad</script>'];
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.match(html,/&lt;img/);assert.match(html,/A &amp; B/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<img|<script/);
+});
+test('route preferences are passed through unchanged and all normalized errors remain sanitized',async()=>{
+  let request;const b=browser(async(_,init)=>{request=JSON.parse(init.body);return {ok:true,json:async()=>({route:{durationMinutes:20,distanceMeters:20000},breakTargetsMinutes:[],recommendations:[]})}});
+  b.chips[0].onclick();b.element('detour').value='4';b.element('avoidRelief').checked=false;
+  await b.element('planBtn').onclick();assert.equal(request.preferences.largeGrass,false);assert.equal(request.preferences.restrooms,true);assert.equal(request.preferences.avoidDedicatedReliefAreas,false);assert.equal(request.maxDetourMinutes,4);
+  for(const code of ['INVALID_INPUT','NO_STOP_CANDIDATES','ROUTE_NOT_FOUND','PROVIDER_ERROR','RATE_LIMITED']){
+    const e=browser(async()=>({ok:false,json:async()=>({error:{code,message:'secret'}})}));await e.element('planBtn').onclick();
+    assert.equal(e.element('planError').textContent,e.read(`routeErrors.${code}`));assert.equal(e.element('planBtn').disabled,false);assert.equal(e.element('planStatus').textContent,'');
+  }
+});
+test('missing recommendation contract is a sanitized error, never reconstructed stops',async()=>{
+  const b=browser(async()=>({ok:true,json:async()=>({route:{durationMinutes:200,distanceMeters:20000},breakTargetsMinutes:[150]})}));await b.element('planBtn').onclick();
+  assert.equal(b.element('planError').textContent,b.read('routeErrors.PROVIDER_ERROR'));assert.equal(b.element('route').classList.contains('hidden'),true);
+});

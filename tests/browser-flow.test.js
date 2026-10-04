@@ -25,11 +25,12 @@ test('planner awaits real route, renders gaps only, and urgent demo still works'
   assert.equal(sent.destination,'Boston, MA');assert.equal(sent.lifeStage,'puppy');
   assert.match(b.element('routeMetrics').textContent,/5h 10m.*217 miles/);
   assert.match(b.element('stops').innerHTML,/PLANNED BREAK 2/);assert.doesNotMatch(b.element('stops').innerHTML,/Hess|Chicago|Navigate|MATCH/);
-  b.element('needStop').onclick();assert.equal(b.element('urgent').classList.contains('hidden'),false);assert.match(b.element('urgentTitle').textContent,/Demo/);
+  b.element('backBtn').onclick();assert.equal(b.element('planner').classList.contains('hidden'),false);
+  b.element('plannerDemo').onclick();assert.equal(b.element('urgent').classList.contains('hidden'),false);assert.match(b.element('urgentTitle').textContent,/Demo/);
   for(const button of [...b.pills,...b.alternatives]){button.onclick();assert.ok(b.element('urgentName').textContent);assert.match(b.element('urgentStatus').textContent,/demo estimate/);}
   b.element('navBtn').onclick();assert.match(b.navigation(),/^https:\/\/www.google.com\/maps\/dir/);
-  b.element('urgentBack').onclick();assert.equal(b.element('route').classList.contains('hidden'),false);
-  b.element('backBtn').onclick();assert.equal(b.element('planner').classList.contains('hidden'),false);
+  b.element('urgentBack').onclick();assert.equal(b.element('planner').classList.contains('hidden'),false);
+  assert.equal(b.element('route').classList.contains('hidden'),true);
 });
 test('short route has no targets; failures are friendly and allow retry',async()=>{
   const b=browser(async()=>({ok:true,json:async()=>({route:{durationMinutes:20,distanceMeters:20000},breakTargetsMinutes:[],recommendations:[]})}));await b.element('planBtn').onclick();assert.match(b.element('stops').innerHTML,/No planned breaks/);
@@ -48,7 +49,7 @@ test('independent planner demo reads current form without a request and returns 
   assert.equal(requests,0);assert.equal(b.element('planner').classList.contains('hidden'),true);
   assert.equal(b.element('urgent').classList.contains('hidden'),false);
   assert.equal(b.element('route').classList.contains('hidden'),true);
-  assert.equal(b.element('urgentTitle').textContent,'Demo stop ahead for Luna');
+  assert.equal(b.element('urgentTitle').textContent,'Demo stop for Luna');
   assert.deepEqual(JSON.parse(b.read('JSON.stringify({dogName,lifeStage,maxDetour,avoidRelief,preferences})')),
     {dogName:'Luna',lifeStage:'Senior',maxDetour:5,avoidRelief:false,preferences:{grass:false,traffic:false,restrooms:false,detour:false,fenced:true,lighting:false}});
   b.element('urgentBack').onclick();
@@ -135,15 +136,12 @@ test('route intro describes real ranking and preserves the dynamic dog name',()=
   assert.match(html,/Break targets planned for <strong id="dogName"><\/strong> around your selected cadence\. PawStop ranks route-aware stops using timing, detour, and available place evidence\./);
   assert.doesNotMatch(html,/Stop locations are coming next/);
 });
-test('urgent demo CTA follows recommendations in normal flow without sticky positioning',()=>{
+test('real route markup has no demo action or curated-demo copy',()=>{
   const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
-  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
-  assert.ok(html.indexOf('id="stops"')<html.indexOf('id="needStop"'));
-  assert.match(html,/<button id="needStop" class="need">/);
-  const rules=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(match=>match[1].split(',').some(selector=>selector.trim()==='.need'));
-  assert.ok(rules.some(rule=>/position:static/.test(rule[2])));
-  assert.ok(rules.every(rule=>!/position:\s*(sticky|fixed)|\bbottom:/.test(rule[2])));
-  assert.doesNotMatch(css,/#route #stops\{padding-bottom:calc\(80px/);
+  const route=html.split('<section id="route"')[1].split('</section>')[0];
+  assert.doesNotMatch(route,/urgent|demo|needStop|needText|curated/i);
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.doesNotMatch(app,/urgentOrigin|needStop|needText/);
 });
 test('backend dog-access caveats remain intact without a duplicate dedicated disclosure',async()=>{
   for(const caveat of ['Dog access is not confirmed.','Dog access not yet confirmed.','Dog permission is unknown.','Dogs allowed: unconfirmed.','Dog access is inferred, not confirmed.']){
@@ -180,4 +178,39 @@ test('place website is a quiet separate returned verification link without a pol
   assert.match(html,/Dog access not yet confirmed/);assert.doesNotMatch(html,/Official policy/);
   const missing=(await planned([{targetMinutes:150,stop:normalizedStop({verification:null})}])).element('stops').innerHTML;
   assert.doesNotMatch(missing,/Place website/);
+});
+
+for(const destination of ['Boston, MA','Nashville, TN','Chicago, IL']){
+  test(`real Jersey City → ${destination} route cannot launch curated demo`,async()=>{
+    let request;
+    const stop=normalizedStop();
+    const b=browser(async(_,init)=>{request=JSON.parse(init.body);return {ok:true,json:async()=>({route:{durationMinutes:500,distanceMeters:700000},breakTargetsMinutes:[150],recommendations:[{targetMinutes:150,stop}]})}});
+    b.element('from').value='Jersey City, NJ';b.element('to').value=destination;
+    await b.element('planBtn').onclick();
+    assert.equal(request.destination,destination);assert.equal(b.element('routeTo').textContent,destination);
+    assert.match(b.element('stops').innerHTML,/Riverside Meadow/);assert.equal(b.element('needStop').onclick,undefined);
+    b.element('plannerDemo').onclick(); // Even a programmatic call cannot launch from route results.
+    assert.equal(b.element('urgent').classList.contains('hidden'),true);assert.equal(b.element('route').classList.contains('hidden'),false);
+    b.element('backBtn').onclick();b.element('plannerDemo').onclick();
+    assert.equal(b.element('urgent').classList.contains('hidden'),false);assert.equal(b.element('urgentTitle').textContent,'Demo stop for Conan');
+    b.element('urgentBack').onclick();assert.equal(b.element('planner').classList.contains('hidden'),false);
+    assert.equal(b.element('route').classList.contains('hidden'),true);
+  });
+}
+test('planner and urgent screen prominently disclose fixed route and simulated context',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const planner=html.split('<section id="planner"')[1].split('</section>')[0];
+  assert.match(planner,/type="button" aria-describedby="plannerDemoContext">Preview urgent-stop demo/);
+  assert.match(planner,/id="plannerDemoContext"[^>]*>Curated Jersey City → Chicago example\. Not based on your entered route or live location\./);
+  const urgent=html.split('<section id="urgent"')[1].split('</section>')[0];
+  assert.match(urgent,/URGENT-STOP DEMO/);assert.match(urgent,/Curated Jersey City → Chicago example/);
+  assert.match(urgent,/Stops are curated and timing is simulated, not based on your planned route or live location/);
+  assert.doesNotMatch(urgent,/stop ahead|How soon does Conan/);
+});
+test('planner demo cannot interrupt an in-flight real route request',async()=>{
+  let resolve;const pending=new Promise(r=>resolve=r);
+  const b=browser(async()=>{await pending;return {ok:true,json:async()=>({route:{durationMinutes:20,distanceMeters:20000},breakTargetsMinutes:[],recommendations:[]})}});
+  const done=b.element('planBtn').onclick();b.element('plannerDemo').onclick();
+  assert.equal(b.element('urgent').classList.contains('hidden'),true);
+  resolve();await done;assert.equal(b.element('route').classList.contains('hidden'),false);
 });

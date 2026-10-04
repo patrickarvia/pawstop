@@ -65,15 +65,56 @@ function timingLabel(actual,target){
   if(Math.abs(delta)<=15) return "Close to planned break";
   return delta<0?`${-delta} min early`:`${delta} min after planned break`;
 }
+// Escape every public string before inserting recommendation markup.
+function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function readableType(type){return type.replace(/[_-]/g," ").replace(/^./,c=>c.toUpperCase())}
+function supported(attribute){return attribute?.confidence==="confirmed"||attribute?.confidence==="inferred"}
+function hasDogAccessCaveat(why){
+  return why.some(explanation=>/\bdog(?:s)?\b/i.test(explanation)
+    &&/\b(access|permission|allowed|allowance)\b/i.test(explanation)
+    &&/\b(not (?:yet )?confirmed|unconfirmed|unknown|uncertain|not verified|not (?:yet )?verified|not known)\b/i.test(explanation));
+}
+function renderRecommendation({targetMinutes,stop},index){
+  const label=`<div class="rec-label">PLANNED BREAK ${index+1} · ${formatMinutes(targetMinutes)}</div>`;
+  if(stop===null) return `<article class="stop coverage-gap">${label}
+    <h3>No suitable PawStop found for this break</h3>
+    <p class="meta">PawStop could not find a recommendation that met the current evidence and planning threshold near this target.</p>
+  </article>`;
+  const tags=[];
+  for(const [key,title] of Object.entries({largeGrass:"Large grass",restrooms:"Restrooms",dogsAllowed:"Dogs allowed",fenced:"Fenced",lighting:"Lighting",parking:"Parking",dedicatedDogArea:"Dedicated dog area"})){
+    const attribute=stop.attributes?.[key];
+    if(attribute?.value===true&&supported(attribute)) tags.push(`${title}${attribute.confidence==="inferred"?" · inferred":""}`);
+  }
+  const traffic=stop.attributes?.dogTraffic;
+  if(supported(traffic)&&["low","medium","high"].includes(traffic.value)) tags.push(`${readableType(traffic.value)} dog traffic${traffic.confidence==="inferred"?" · inferred":""}`);
+  const dogs=stop.attributes?.dogsAllowed;
+  const dogAccess=dogs?.value===true&&supported(dogs)
+    ?dogs.confidence==="confirmed"?"Dog access confirmed":"Dog access inferred · not yet confirmed"
+    :"Dog access not yet confirmed";
+  const detour=Math.round(stop.route.detourMinutes);
+  return `<article class="stop recommended real-stop">${label}
+    <div class="recommendation-summary"><span class="match">${escapeHtml(stop.pawstop.matchScore)}% MATCH</span>${stop.primaryType?`<span class="type-badge">${escapeHtml(readableType(stop.primaryType))}</span>`:""}</div>
+    <h3>${escapeHtml(stop.name)}</h3>
+    ${stop.address?`<p class="place">${escapeHtml(stop.address)}</p>`:""}
+    <div class="recommendation-timing"><span>${formatMinutes(stop.route.tripMinutes)} from start</span><span>${detour?`+${detour} min detour`:"No estimated route detour"}</span><span>${escapeHtml(stop.route.timingLabel)}</span></div>
+    ${tags.length?`<div class="tags">${tags.map(tag=>`<span>${escapeHtml(tag)}</span>`).join("")}</div>`:""}
+    ${stop.pawstop.why.length?`<div class="why"><strong>Why PawStop picked this</strong><ul>${stop.pawstop.why.map(why=>`<li>${escapeHtml(why)}</li>`).join("")}</ul></div>`:""}
+    ${dogAccess!=="Dog access confirmed"&&hasDogAccessCaveat(stop.pawstop.why)?"":`<p class="dog-access">${dogAccess}</p>`}
+    <div class="stop-actions">${stop.navigation?.googleMapsUrl?`<a class="recommendation-nav" href="${escapeHtml(stop.navigation.googleMapsUrl)}" target="_blank" rel="noopener">Navigate →</a>`:'<span class="navigation-unavailable">Navigation link unavailable</span>'}</div>
+  </article>`;
+}
 function renderStops(){
   const route=routePlan.route;
   $("routeMetrics").textContent=`${formatMinutes(route.durationMinutes)} driving · ${(route.distanceMeters/1609.344).toLocaleString(undefined,{maximumFractionDigits:0})} miles · Traffic not included`;
-  $("routeLogic").textContent=`Break targets every ${formatMinutes(cadenceMinutes)} using your real driving route. Real stop discovery is the next V2.2 phase; preferences will affect recommendations when stop matching is available.`;
-  $("stops").innerHTML=plannedTargets().map((target,i)=>`<article class="stop">
-    <div class="rec-label">PLANNED BREAK ${i+1} · ${formatMinutes(target)}</div>
-    <h3>Stop location not yet available</h3>
-    <p class="meta">This is a planned break target, not a recommended place. Real stop discovery is the next V2.2 phase. Choose a suitable stop for this gap before traveling.</p>
-  </article>`).join("")||'<article class="stop"><h3>No planned breaks before arrival</h3><p class="meta">This route is within your selected break cadence. Stop whenever your dog needs a break.</p></article>';
+  $("routeLogic").textContent=`Break targets every ${formatMinutes(cadenceMinutes)} using your real driving route. Recommendations reflect available place evidence and your preferences; max detour is a preference. Gaps remain explicit where no suitable stop was found.`;
+  $("stops").innerHTML=routePlan.recommendations.map(renderRecommendation).join("")||'<article class="stop"><h3>No planned breaks before arrival</h3><p class="meta">This route is within your selected break cadence. Stop whenever your dog needs a break.</p></article>';
+}
+
+function validPublicStop(stop){
+  return stop&&typeof stop.name==="string"&&stop.route&&stop.pawstop
+    &&Number.isFinite(stop.route.tripMinutes)&&Number.isFinite(stop.route.detourMinutes)
+    &&typeof stop.route.timingLabel==="string"&&Number.isFinite(stop.pawstop.matchScore)
+    &&Array.isArray(stop.pawstop.why)&&stop.pawstop.why.every(why=>typeof why==="string");
 }
 
 const routeErrors={
@@ -105,7 +146,9 @@ $("planBtn").onclick=async()=>{
     if(!response.ok) throw new Error(Object.hasOwn(routeErrors,data?.error?.code)?data.error.code:"PROVIDER_ERROR");
     if(!data?.route||!Number.isFinite(data.route.durationMinutes)||data.route.durationMinutes<=0
       ||!Number.isFinite(data.route.distanceMeters)||data.route.distanceMeters<=0
-      ||!Array.isArray(data.breakTargetsMinutes)||!data.breakTargetsMinutes.every((t,i,all)=>Number.isFinite(t)&&t>0&&t<data.route.durationMinutes&&(i===0||t>all[i-1]))) throw new Error("PROVIDER_ERROR");
+      ||!Array.isArray(data.breakTargetsMinutes)||!data.breakTargetsMinutes.every((t,i,all)=>Number.isFinite(t)&&t>0&&t<data.route.durationMinutes&&(i===0||t>all[i-1]))
+      ||!Array.isArray(data.recommendations)||data.recommendations.length!==data.breakTargetsMinutes.length
+      ||!data.recommendations.every((r,i)=>r&&r.targetMinutes===data.breakTargetsMinutes[i]&&(r.stop===null||validPublicStop(r.stop)))) throw new Error("PROVIDER_ERROR");
     routePlan=data;
     dogName=request.dogName;avoidRelief=request.preferences.avoidDedicatedReliefAreas;
     maxDetour=request.maxDetourMinutes;lifeStage=request.lifeStage[0].toUpperCase()+request.lifeStage.slice(1);

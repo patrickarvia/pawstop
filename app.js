@@ -108,7 +108,9 @@ function renderRecommendation({targetMinutes,stop},index){
   const detour=Math.round(stop.route.detourMinutes);
   const navigation=recommendationNavUrl(stop);
   const website=safePublicUrl(stop.verification?.placeWebsiteUrl);
-  const why=stop.pawstop.why.slice(0,4);
+  // The dedicated caveat already covers this fact; keep distinct evidence reasons.
+  const why=stop.pawstop.why.filter(reason=>dogs?.confidence!=="unknown"
+    ||!/^dog(?:s)? (?:access|permission|allowance|allowed)(?: is| are|:)? (?:not (?:yet )?confirmed|unconfirmed|unknown|uncertain|not (?:yet )?verified|not known)[.!]?$/i.test(reason.trim())).slice(0,4);
   return `<article class="stop recommended real-stop">${label}
     <div class="stop-head"><h3>${escapeHtml(stop.name)}</h3><span class="match">${Math.round(stop.pawstop.matchScore)} FIT</span></div>
     ${typeof stop.address==="string"&&stop.address.trim()?`<p class="place">${escapeHtml(stop.address)}</p>`:""}

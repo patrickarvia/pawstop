@@ -143,15 +143,30 @@ test('real route markup has no demo action or curated-demo copy',()=>{
   const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
   assert.doesNotMatch(app,/urgentOrigin|needStop|needText/);
 });
-test('backend dog-access caveats remain intact with a dedicated visible disclosure',async()=>{
-  for(const caveat of ['Dog access is not confirmed.','Dog access not confirmed.','Dog permission is unknown.','Dogs allowed: unconfirmed.','Dog access is inferred, not confirmed.']){
-    const stop=normalizedStop();stop.pawstop.why=[caveat,'Reported restrooms available.'];
+test('unknown dog access uses one dedicated disclosure without duplicate Why reasons',async()=>{
+  for(const caveat of ['Dog access is not confirmed.','Dog access not confirmed.','Dog access not yet confirmed.','Dog permission is unknown.','Dogs allowed: unconfirmed.']){
+    const stop=normalizedStop();stop.pawstop.why=[caveat,'Reported restrooms available.','Small route detour.'];
+    const before=JSON.stringify(stop);
     const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
-    assert.ok(html.includes(caveat));assert.match(html,/class="dog-access">Dog access not confirmed/);
+    assert.equal((html.match(/class="dog-access"/g)||[]).length,1);
+    assert.match(html,/class="dog-access">Dog access not confirmed/);
+    assert.ok(!html.includes(`<li>${caveat}</li>`));
+    assert.match(html,/<li>Reported restrooms available[.]<\/li>/);
+    assert.match(html,/<li>Small route detour[.]<\/li>/);
+    assert.equal(JSON.stringify(stop),before);
   }
-  const stop=normalizedStop();stop.pawstop.why=['Restroom access is not confirmed.'];
+});
+test('Why filtering preserves distinct evidence facts and non-unknown dog-access reasons',async()=>{
+  const stop=normalizedStop();
+  stop.pawstop.why=['Dog access is inferred, not confirmed.','Dogs allowed on leash only.','Dog access is not confirmed. Check seasonal restrictions.','Restroom access is not confirmed.'];
   const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
-  assert.match(html,/class="dog-access">Dog access not confirmed/);
+  for(const reason of stop.pawstop.why)assert.ok(html.includes(`<li>${reason}</li>`));
+  for(const confidence of ['confirmed','inferred']){
+    const known=normalizedStop();known.attributes.dogsAllowed={value:true,confidence};
+    known.pawstop.why=['Dog access is not confirmed.'];
+    const result=(await planned([{targetMinutes:150,stop:known}])).element('stops').innerHTML;
+    assert.match(result,/<li>Dog access is not confirmed[.]<\/li>/);
+  }
 });
 test('hyphenated and underscored normalized place types display as spaces without mutation',async()=>{
   for(const [primaryType,label] of [['rest-area','Rest area'],['recreation_area','Recreation area']]){
@@ -167,7 +182,7 @@ test('real cards display only normalized evidence-strength badges alongside matc
     const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
     assert.match(html,/82 FIT/);
     if(label)assert.ok(html.includes(`<span class="evidence-badge">${label}</span>`));else assert.doesNotMatch(html,/class="evidence-badge"/);
-    assert.ok(html.includes('Dog access is not confirmed.'));assert.match(html,/class="dog-access">Dog access not confirmed/);assert.doesNotMatch(html,/40%|confidence percentage|safety confidence/);
+    assert.doesNotMatch(html,/<li>Dog access is not confirmed[.]<\/li>/);assert.match(html,/class="dog-access">Dog access not confirmed/);assert.doesNotMatch(html,/40%|confidence percentage|safety confidence/);
   }
 });
 

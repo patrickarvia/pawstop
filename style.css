@@ -114,3 +114,13 @@ input:focus,select:focus{outline:2px solid var(--forest);outline-offset:2px;bord
 .coverage-gap{border-left-color:var(--line)}
 
 .evidence-badge{font-size:9px;line-height:1.5;letter-spacing:.06em;color:var(--muted);font-weight:500}
+
+/* Real route cards keep long place names and addresses within mobile widths. */
+.real-stop .rec-label{color:var(--clay-ink)}
+.real-stop .stop-head{flex-wrap:nowrap;align-items:flex-start}
+.real-stop .stop-head h3{min-width:0;flex:1}
+.real-stop .match{flex-shrink:0}
+.real-stop .recommendation-summary{margin:10px 0 0}
+.real-stop .dog-access{background:var(--soft-sage);border-left:2px solid var(--amber);border-radius:0 6px 6px 0;padding:10px 12px;color:var(--forest)}
+.real-stop .recommendation-nav{max-width:100%;line-height:1.6;text-align:center}
+.coverage-gap{overflow-wrap:anywhere}

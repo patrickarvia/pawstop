@@ -13,7 +13,7 @@ function browser(fetch){
   for(const [id,value] of Object.entries({from:'New York, NY',to:'Boston, MA',dog:'Conan',age:'Puppy',break:'2.5',detour:'10'}))element(id).value=value;
   element('avoidRelief').checked=true;
   let navigation;
-  const context=vm.createContext({document:{getElementById:element,querySelectorAll:s=>s==='.chip'?chips:s==='.time-pill'?pills:s==='[data-alt]'?alternatives:[]},window:{open:url=>navigation=url},fetch,AbortSignal,scrollTo(){}});
+  const context=vm.createContext({document:{getElementById:element,querySelectorAll:s=>s==='.chip'?chips:s==='.time-pill'?pills:s==='[data-alt]'?alternatives:[]},window:{open:url=>navigation=url},fetch,URL,AbortSignal,scrollTo(){}});
   vm.runInContext(fs.readFileSync(require.resolve('../app.js'),'utf8'),context);
   return {element,pills,alternatives,chips,read:expression=>vm.runInContext(expression,context),navigation:()=>navigation};
 }
@@ -86,7 +86,7 @@ async function planned(recommendations){
 test('normalized recommendation renders identity, product match, real timing, and backend explanations',async()=>{
   const stop=normalizedStop();const before=JSON.stringify(stop);
   const b=await planned([{targetMinutes:150,stop}]);const html=b.element('stops').innerHTML;
-  for(const text of ['PLANNED BREAK 1 · 2h 30m','Riverside Meadow','Recreation area','12 River Road','82% MATCH','2h 24m from start','+6 min detour','Close to planned break','Reported restrooms available.','Inferred: open grass.','Restrooms','Parking','Large grass · inferred','Low dog traffic · inferred','Dog access not yet confirmed']) assert.ok(html.includes(text),text);
+  for(const text of ['PLANNED BREAK 1 · 2h 30m','Riverside Meadow','Recreation area','12 River Road','82 FIT','2h 24m into trip','+6 min detour','Close to planned break','Reported restrooms available.','Inferred: open grass.','Restrooms','Parking','Large grass · inferred','Low dog traffic · inferred','Dog access not confirmed']) assert.ok(html.includes(text),text);
   assert.ok(html.includes('href="https://maps.google.com/?cid=123&amp;mode=driving" target="_blank" rel="noopener"'));
   assert.doesNotMatch(html,/79\.5|private-place-id|Lighting|No restrooms|dog-friendly|Hess/);
   assert.equal(JSON.stringify(stop),before);
@@ -98,18 +98,18 @@ test('optional fields and null navigation are omitted safely; zero detour and co
   const stop=normalizedStop({primaryType:null,address:null,navigation:null});
   stop.route.detourMinutes=.2;stop.attributes.dogsAllowed={value:true,confidence:'confirmed'};
   const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
-  assert.match(html,/No estimated route detour/);assert.match(html,/Navigation link unavailable/);
-  assert.match(html,/Dogs allowed/);assert.match(html,/Dog access confirmed/);
+  assert.match(html,/No meaningful route detour/);assert.doesNotMatch(html,/recommendation-nav/);
+  assert.match(html,/Dogs allowed/);assert.doesNotMatch(html,/class="dog-access"/);
   assert.doesNotMatch(html,/href=|Recreation area|12 River Road/);
 });
 test('inferred dog permission stays labeled and partial coverage preserves API itinerary order',async()=>{
   const first=normalizedStop();first.attributes.dogsAllowed={value:true,confidence:'inferred'};
   const last=normalizedStop({id:'real-2',name:'Later Park'});last.route={tripMinutes:460,detourMinutes:14,targetMinutes:450,deltaMinutes:10,timingLabel:'Returned timing label'};
   const html=(await planned([{targetMinutes:150,stop:first},{targetMinutes:300,stop:null},{targetMinutes:450,stop:last}])).element('stops').innerHTML;
-  assert.match(html,/Dogs allowed · inferred/);assert.match(html,/Dog access inferred · not yet confirmed/);
-  assert.match(html,/PLANNED BREAK 2 · 5h 0m/);assert.match(html,/No suitable PawStop found/);
-  assert.match(html,/current evidence and planning threshold/);assert.match(html,/Returned timing label/);
-  assert.match(html,/\+14 min detour/);assert.ok(html.indexOf('Riverside Meadow')<html.indexOf('No suitable PawStop'));assert.ok(html.indexOf('No suitable PawStop')<html.indexOf('Later Park'));
+  assert.match(html,/Dogs allowed · inferred/);assert.match(html,/Dog access not confirmed/);
+  assert.match(html,/PLANNED BREAK 2 · 5h 0m/);assert.match(html,/No strong Pawstop match/);
+  assert.match(html,/current timing and fit requirements/);assert.match(html,/Returned timing label/);
+  assert.match(html,/\+14 min detour/);assert.ok(html.indexOf('Riverside Meadow')<html.indexOf('No strong Pawstop match'));assert.ok(html.indexOf('No strong Pawstop match')<html.indexOf('Later Park'));
   assert.doesNotMatch(html,/provider failure|Stop location not yet available/);
 });
 test('public strings are escaped instead of interpreted as markup',async()=>{
@@ -133,7 +133,7 @@ test('missing recommendation contract is a sanitized error, never reconstructed 
 
 test('route intro describes real ranking and preserves the dynamic dog name',()=>{
   const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
-  assert.match(html,/Break targets planned for <strong id="dogName"><\/strong> around your selected cadence\. PawStop ranks route-aware stops using timing, detour, and available place evidence\./);
+  assert.match(html,/Breaks planned for <strong id="dogName"><\/strong> around your route and selected cadence\./);
   assert.doesNotMatch(html,/Stop locations are coming next/);
 });
 test('real route markup has no demo action or curated-demo copy',()=>{
@@ -143,15 +143,15 @@ test('real route markup has no demo action or curated-demo copy',()=>{
   const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
   assert.doesNotMatch(app,/urgentOrigin|needStop|needText/);
 });
-test('backend dog-access caveats remain intact without a duplicate dedicated disclosure',async()=>{
-  for(const caveat of ['Dog access is not confirmed.','Dog access not yet confirmed.','Dog permission is unknown.','Dogs allowed: unconfirmed.','Dog access is inferred, not confirmed.']){
+test('backend dog-access caveats remain intact with a dedicated visible disclosure',async()=>{
+  for(const caveat of ['Dog access is not confirmed.','Dog access not confirmed.','Dog permission is unknown.','Dogs allowed: unconfirmed.','Dog access is inferred, not confirmed.']){
     const stop=normalizedStop();stop.pawstop.why=[caveat,'Reported restrooms available.'];
     const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
-    assert.ok(html.includes(caveat));assert.doesNotMatch(html,/class="dog-access"/);
+    assert.ok(html.includes(caveat));assert.match(html,/class="dog-access">Dog access not confirmed/);
   }
   const stop=normalizedStop();stop.pawstop.why=['Restroom access is not confirmed.'];
   const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
-  assert.match(html,/class="dog-access">Dog access not yet confirmed/);
+  assert.match(html,/class="dog-access">Dog access not confirmed/);
 });
 test('hyphenated and underscored normalized place types display as spaces without mutation',async()=>{
   for(const [primaryType,label] of [['rest-area','Rest area'],['recreation_area','Recreation area']]){
@@ -165,9 +165,9 @@ test('real cards display only normalized evidence-strength badges alongside matc
   for(const [evidenceStrength,label] of [['strong','STRONG EVIDENCE'],['moderate','MODERATE EVIDENCE'],['limited','LIMITED EVIDENCE'],['very_limited','VERY LIMITED EVIDENCE'],[null,null]]){
     const stop=normalizedStop();stop.pawstop={...stop.pawstop,evidenceStrength,evidenceCoverage:40,why:['Dog access is not confirmed.']};
     const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
-    assert.match(html,/82% MATCH/);
+    assert.match(html,/82 FIT/);
     if(label)assert.ok(html.includes(`<span class="evidence-badge">${label}</span>`));else assert.doesNotMatch(html,/class="evidence-badge"/);
-    assert.ok(html.includes('Dog access is not confirmed.'));assert.doesNotMatch(html,/class="dog-access"|40%|confidence percentage|safety confidence/);
+    assert.ok(html.includes('Dog access is not confirmed.'));assert.match(html,/class="dog-access">Dog access not confirmed/);assert.doesNotMatch(html,/40%|confidence percentage|safety confidence/);
   }
 });
 
@@ -175,7 +175,7 @@ test('place website is a quiet separate returned verification link without a pol
   const stop=normalizedStop({verification:{placeWebsiteUrl:'https://example.org/park?a=1&b=2'}});
   const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
   assert.ok(html.includes('href="https://example.org/park?a=1&amp;b=2" target="_blank" rel="noopener">Place website ↗'));
-  assert.match(html,/Dog access not yet confirmed/);assert.doesNotMatch(html,/Official policy/);
+  assert.match(html,/Dog access not confirmed/);assert.doesNotMatch(html,/Official policy/);
   const missing=(await planned([{targetMinutes:150,stop:normalizedStop({verification:null})}])).element('stops').innerHTML;
   assert.doesNotMatch(missing,/Place website/);
 });
@@ -213,4 +213,63 @@ test('planner demo cannot interrupt an in-flight real route request',async()=>{
   const done=b.element('planBtn').onclick();b.element('plannerDemo').onclick();
   assert.equal(b.element('urgent').classList.contains('hidden'),true);
   resolve();await done;assert.equal(b.element('route').classList.contains('hidden'),false);
+});
+
+
+test('mixed real recommendations render selective evidence, FIT, gaps, and API order',async()=>{
+  const first=normalizedStop({lat:40.2,lng:-74.3});
+  first.attributes.largeGrass={value:null,confidence:'unknown'};
+  first.attributes.dogTraffic={value:null,confidence:'unknown'};
+  const second=normalizedStop({name:'Second Park'});
+  second.route={...second.route,tripMinutes:302,targetMinutes:300};
+  second.attributes.dogsAllowed={value:true,confidence:'confirmed'};
+  const html=(await planned([{targetMinutes:150,stop:first},{targetMinutes:300,stop:second},{targetMinutes:450,stop:null}])).element('stops').innerHTML;
+  for(const text of ['Riverside Meadow','Second Park','82 FIT','Restrooms','Parking','Dogs allowed','Dog access not confirmed','No strong Pawstop match'])assert.ok(html.includes(text),text);
+  assert.doesNotMatch(html,/% MATCH|Stop location not yet available|Hess/);
+  assert.doesNotMatch(html.split('</article>')[0],/Large grass|Low dog traffic/);
+  assert.equal((html.match(/Dog access not confirmed/g)||[]).length,1);
+  assert.ok(html.indexOf('Riverside Meadow')<html.indexOf('Second Park'));
+  assert.ok(html.indexOf('Second Park')<html.indexOf('No strong Pawstop match'));
+});
+test('real navigation uses submitted route snapshot and selected coordinates without a key',async()=>{
+  const b=await planned([{targetMinutes:150,stop:normalizedStop({lat:40.2,lng:-74.3})}]);
+  b.element('from').value='Changed after submission';
+  const url=new URL(b.read('recommendationNavUrl(routePlan.recommendations[0].stop)'));
+  assert.equal(url.origin+url.pathname,'https://www.google.com/maps/dir/');
+  for(const [key,value] of Object.entries({api:'1',origin:'New York, NY',destination:'Boston, MA',waypoints:'40.2,-74.3',travelmode:'driving'}))assert.equal(url.searchParams.get(key),value);
+  assert.doesNotMatch(url.href,/key=/i);
+  assert.match(b.element('stops').innerHTML,/target="_blank" rel="noopener">Open in Google Maps/);
+});
+test('invalid coordinates fall back only to safe public Google Maps links',async()=>{
+  for(const coords of [{},{lat:91,lng:0},{lat:0,lng:181},{lat:'40',lng:2},{lat:null,lng:null}]){
+    const html=(await planned([{targetMinutes:150,stop:normalizedStop(coords)}])).element('stops').innerHTML;
+    assert.match(html,/href="https:\/\/maps.google.com\/\?cid=123&amp;mode=driving"/);
+  }
+  for(const url of ['javascript:alert(1)','https://evil.example/','https://www.google.com@evil.example/','https://maps.google.com.evil.example/',null]){
+    const html=(await planned([{targetMinutes:150,stop:normalizedStop({navigation:{googleMapsUrl:url}})}])).element('stops').innerHTML;
+    assert.doesNotMatch(html,/recommendation-nav/);
+  }
+});
+test('malformed individual stops become gaps while later recommendations survive',async()=>{
+  for(const bad of [{},normalizedStop({name:'  '}),normalizedStop({route:{tripMinutes:NaN,detourMinutes:2}}),normalizedStop({pawstop:{matchScore:Infinity,why:[]}})]){
+    const b=await planned([{targetMinutes:150,stop:bad},{targetMinutes:300,stop:normalizedStop({name:'Later valid stop'})}]);
+    assert.match(b.element('stops').innerHTML,/No strong Pawstop match[\s\S]*Later valid stop/);
+    assert.equal(b.element('route').classList.contains('hidden'),false);
+  }
+});
+test('all provider text including type and malicious anchors stays escaped',async()=>{
+  const stop=normalizedStop({name:'<script>alert(1)</script>',address:'<img src=x onerror="alert(1)">',primaryType:'<a href="javascript:alert(1)">bad</a>'});
+  stop.pawstop.why=['<a onclick="alert(1)">reason</a>'];
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  for(const escaped of ['&lt;script&gt;','&lt;img','&lt;a','&quot;'])assert.ok(html.includes(escaped));
+  assert.doesNotMatch(html,/<script|<img|<a onclick|<a href="javascript/);
+});
+test('explanations stay compact and unknown dog access remains visible beyond truncation',async()=>{
+  const stop=normalizedStop();stop.pawstop.why=['One','Two','Three','Four','Dog permission is unknown.'];
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.equal((html.match(/<li>/g)||[]).length,4);
+  assert.match(html,/Dog access not confirmed/);
+});
+test('active frontend copy has no stale discovery placeholders',()=>{
+  for(const file of ['../app.js','../index.html'])assert.doesNotMatch(fs.readFileSync(require.resolve(file),'utf8'),/Stop locations are coming next|Real stop discovery is the next V2.2 phase|no real stop recommendations yet/);
 });

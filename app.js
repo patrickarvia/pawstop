@@ -11,6 +11,7 @@ const stops=[
 const $=id=>document.getElementById(id);
 let preferences={grass:true,traffic:true,restrooms:true,detour:true,fenced:false,lighting:false};
 let routePlan=null;
+let routeInputs=null;
 let lifeStage="Puppy", cadenceMinutes=150;
 let avoidRelief=true, maxDetour=10, dogName="Conan", current=null, urgentWindow=30;
 
@@ -66,53 +67,71 @@ function timingLabel(actual,target){
 }
 // Escape every public string before inserting recommendation markup.
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function readableType(type){return type.replace(/[_-]/g," ").replace(/^./,c=>c.toUpperCase())}
+function readableType(type){
+  const normalized=type.replace(/[_-]/g," ").trim();
+  if(normalized==="dedicated dog area") return "Dog area";
+  return normalized.replace(/^./,c=>c.toUpperCase());
+}
 function supported(attribute){return attribute?.confidence==="confirmed"||attribute?.confidence==="inferred"}
-function hasDogAccessCaveat(why){
-  return why.some(explanation=>/\bdog(?:s)?\b/i.test(explanation)
-    &&/\b(access|permission|allowed|allowance)\b/i.test(explanation)
-    &&/\b(not (?:yet )?confirmed|unconfirmed|unknown|uncertain|not verified|not (?:yet )?verified|not known)\b/i.test(explanation));
+function safePublicUrl(value,googleOnly=false){
+  if(typeof value!=="string"||/[\s\\]/.test(value)) return null;
+  try{
+    const url=new URL(value);
+    if(url.protocol!=="https:"||url.username||url.password) return null;
+    if(googleOnly&&!['www.google.com','maps.google.com','maps.app.goo.gl','goo.gl'].includes(url.hostname)) return null;
+    return url.href;
+  }catch{return null}
+}
+function recommendationNavUrl(stop){
+  if(Number.isFinite(stop.lat)&&Math.abs(stop.lat)<=90&&Number.isFinite(stop.lng)&&Math.abs(stop.lng)<=180&&routeInputs){
+    return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(routeInputs.origin)
+      +"&destination="+encodeURIComponent(routeInputs.destination)+"&waypoints="+encodeURIComponent(`${stop.lat},${stop.lng}`)+"&travelmode=driving";
+  }
+  return safePublicUrl(stop.navigation?.googleMapsUrl,true);
 }
 function renderRecommendation({targetMinutes,stop},index){
   const label=`<div class="rec-label">PLANNED BREAK ${index+1} · ${formatMinutes(targetMinutes)}</div>`;
-  if(stop===null) return `<article class="stop coverage-gap">${label}
-    <h3>No suitable PawStop found for this break</h3>
-    <p class="meta">PawStop could not find a recommendation that met the current evidence and planning threshold near this target.</p>
+  if(!validPublicStop(stop)) return `<article class="stop coverage-gap">${label}
+    <h3>No strong Pawstop match for this break</h3>
+    <p class="meta">No recommendation met the current timing and fit requirements for this break. Consider stopping sooner if your dog needs a break.</p>
   </article>`;
   const tags=[];
-  for(const [key,title] of Object.entries({largeGrass:"Large grass",restrooms:"Restrooms",dogsAllowed:"Dogs allowed",fenced:"Fenced",lighting:"Lighting",parking:"Parking",dedicatedDogArea:"Dedicated dog area"})){
+  for(const [key,title] of Object.entries({largeGrass:"Large grass",restrooms:"Restrooms",dogsAllowed:"Dogs allowed",fenced:"Fenced",lighting:"Good lighting",parking:"Parking",dedicatedDogArea:"Dog area"})){
     const attribute=stop.attributes?.[key];
     if(attribute?.value===true&&supported(attribute)) tags.push(`${title}${attribute.confidence==="inferred"?" · inferred":""}`);
   }
   const traffic=stop.attributes?.dogTraffic;
   if(supported(traffic)&&["low","medium","high"].includes(traffic.value)) tags.push(`${readableType(traffic.value)} dog traffic${traffic.confidence==="inferred"?" · inferred":""}`);
   const dogs=stop.attributes?.dogsAllowed;
-  const dogAccess=dogs?.value===true&&supported(dogs)
-    ?dogs.confidence==="confirmed"?"Dog access confirmed":"Dog access inferred · not yet confirmed"
-    :"Dog access not yet confirmed";
+  const dogAccess=dogs?.value===true&&supported(dogs)?null:"Dog access not confirmed";
   const evidenceLabel={strong:"STRONG EVIDENCE",moderate:"MODERATE EVIDENCE",limited:"LIMITED EVIDENCE",very_limited:"VERY LIMITED EVIDENCE"}[stop.pawstop.evidenceStrength];
   const detour=Math.round(stop.route.detourMinutes);
+  const navigation=recommendationNavUrl(stop);
+  const website=safePublicUrl(stop.verification?.placeWebsiteUrl);
+  // The dedicated caveat already covers this fact; keep distinct evidence reasons.
+  const why=stop.pawstop.why.filter(reason=>dogs?.confidence!=="unknown"
+    ||!/^dog(?:s)? (?:access|permission|allowance|allowed)(?: is| are|:)? (?:not (?:yet )?confirmed|unconfirmed|unknown|uncertain|not (?:yet )?verified|not known)[.!]?$/i.test(reason.trim())).slice(0,4);
   return `<article class="stop recommended real-stop">${label}
-    <div class="recommendation-summary"><span class="match">${escapeHtml(stop.pawstop.matchScore)}% MATCH</span>${evidenceLabel?`<span class="evidence-badge">${evidenceLabel}</span>`:""}${stop.primaryType?`<span class="type-badge">${escapeHtml(readableType(stop.primaryType))}</span>`:""}</div>
-    <h3>${escapeHtml(stop.name)}</h3>
-    ${stop.address?`<p class="place">${escapeHtml(stop.address)}</p>`:""}
-    <div class="recommendation-timing"><span>${formatMinutes(stop.route.tripMinutes)} from start</span><span>${detour?`+${detour} min detour`:"No estimated route detour"}</span><span>${escapeHtml(stop.route.timingLabel)}</span></div>
+    <div class="stop-head"><h3>${escapeHtml(stop.name)}</h3><span class="match">${Math.round(stop.pawstop.matchScore)} FIT</span></div>
+    ${typeof stop.address==="string"&&stop.address.trim()?`<p class="place">${escapeHtml(stop.address)}</p>`:""}
+    <div class="recommendation-summary">${typeof stop.primaryType==="string"&&stop.primaryType.trim()?`<span class="type-badge">${escapeHtml(readableType(stop.primaryType))}</span>`:""}${evidenceLabel?`<span class="evidence-badge">${evidenceLabel}</span>`:""}</div>
+    <div class="recommendation-timing"><span>${formatMinutes(stop.route.tripMinutes)} into trip · ${detour?`+${detour} min detour`:"No meaningful route detour"}</span><span>${escapeHtml(stop.route.timingLabel)}</span></div>
     ${tags.length?`<div class="tags">${tags.map(tag=>`<span>${escapeHtml(tag)}</span>`).join("")}</div>`:""}
-    ${stop.pawstop.why.length?`<div class="why"><strong>Why PawStop picked this</strong><ul>${stop.pawstop.why.map(why=>`<li>${escapeHtml(why)}</li>`).join("")}</ul></div>`:""}
-    ${dogAccess!=="Dog access confirmed"&&hasDogAccessCaveat(stop.pawstop.why)?"":`<p class="dog-access">${dogAccess}</p>`}
-    ${stop.verification?.placeWebsiteUrl?`<a class="source-link place-website" href="${escapeHtml(stop.verification.placeWebsiteUrl)}" target="_blank" rel="noopener">Place website ↗</a>`:""}
-    <div class="stop-actions">${stop.navigation?.googleMapsUrl?`<a class="recommendation-nav" href="${escapeHtml(stop.navigation.googleMapsUrl)}" target="_blank" rel="noopener">Navigate →</a>`:'<span class="navigation-unavailable">Navigation link unavailable</span>'}</div>
+    ${why.length?`<div class="why"><strong>Why Pawstop picked this</strong><ul>${why.map(reason=>`<li>${escapeHtml(reason)}</li>`).join("")}</ul></div>`:""}
+    ${dogAccess?`<p class="dog-access">${dogAccess}</p>`:""}
+    ${website?`<a class="source-link place-website" href="${escapeHtml(website)}" target="_blank" rel="noopener">Place website ↗</a>`:""}
+    ${navigation?`<div class="stop-actions"><a class="recommendation-nav" href="${escapeHtml(navigation)}" target="_blank" rel="noopener">Open in Google Maps</a></div>`:""}
   </article>`;
 }
 function renderStops(){
   const route=routePlan.route;
   $("routeMetrics").textContent=`${formatMinutes(route.durationMinutes)} driving · ${(route.distanceMeters/1609.344).toLocaleString(undefined,{maximumFractionDigits:0})} miles · Traffic not included`;
-  $("routeLogic").textContent=`Break targets every ${formatMinutes(cadenceMinutes)} using your real driving route. Recommendations reflect available place evidence and your preferences; max detour is a preference. Gaps remain explicit where no suitable stop was found.`;
+  $("routeLogic").textContent="Pawstop ranks real stops around each planned break using route timing, detour, and the preferences with available evidence. Gaps remain explicit where no strong match was found.";
   $("stops").innerHTML=routePlan.recommendations.map(renderRecommendation).join("")||'<article class="stop"><h3>No planned breaks before arrival</h3><p class="meta">This route is within your selected break cadence. Stop whenever your dog needs a break.</p></article>';
 }
 
 function validPublicStop(stop){
-  return stop&&typeof stop.name==="string"&&stop.route&&stop.pawstop
+  return stop&&typeof stop.name==="string"&&stop.name.trim()&&stop.route&&stop.pawstop
     &&Number.isFinite(stop.route.tripMinutes)&&Number.isFinite(stop.route.detourMinutes)
     &&typeof stop.route.timingLabel==="string"&&Number.isFinite(stop.pawstop.matchScore)
     &&Array.isArray(stop.pawstop.why)&&stop.pawstop.why.every(why=>typeof why==="string");
@@ -149,8 +168,9 @@ $("planBtn").onclick=async()=>{
       ||!Number.isFinite(data.route.distanceMeters)||data.route.distanceMeters<=0
       ||!Array.isArray(data.breakTargetsMinutes)||!data.breakTargetsMinutes.every((t,i,all)=>Number.isFinite(t)&&t>0&&t<data.route.durationMinutes&&(i===0||t>all[i-1]))
       ||!Array.isArray(data.recommendations)||data.recommendations.length!==data.breakTargetsMinutes.length
-      ||!data.recommendations.every((r,i)=>r&&r.targetMinutes===data.breakTargetsMinutes[i]&&(r.stop===null||validPublicStop(r.stop)))) throw new Error("PROVIDER_ERROR");
+      ||!data.recommendations.every((r,i)=>r&&r.targetMinutes===data.breakTargetsMinutes[i]&&Object.hasOwn(r,"stop"))) throw new Error("PROVIDER_ERROR");
     routePlan=data;
+    routeInputs={origin:request.origin,destination:request.destination};
     dogName=request.dogName;avoidRelief=request.preferences.avoidDedicatedReliefAreas;
     maxDetour=request.maxDetourMinutes;lifeStage=request.lifeStage[0].toUpperCase()+request.lifeStage.slice(1);
     cadenceMinutes=request.breakCadenceMinutes;

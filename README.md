@@ -1,6 +1,10 @@
-# Pawstop V2.2 Phase 2F
+# Pawstop
 
-Pawstop is a dog-first road-trip stop planning prototype built with plain HTML, CSS, and JavaScript. Architecture: [V2.2 API contract](docs/v2.2-api-contract.md).
+Pawstop is a dog-friendly road trip planner that finds useful stops along the route you’re actually driving, using route-aware discovery, detour logic, timing, and place evidence.
+
+[Try Pawstop](https://pawstop-one.vercel.app/) · [Product overview](https://patrickarvia.com/pawstop/) · [Built by Patrick Arvia](https://patrickarvia.com/)
+
+Current development version: V2.2 Phase 2F. Built with plain HTML, CSS, and JavaScript. Architecture: [V2.2 API contract](docs/v2.2-api-contract.md).
 
 ## Current behavior
 

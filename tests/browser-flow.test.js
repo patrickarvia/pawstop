@@ -302,6 +302,11 @@ test('malformed provider address codes are hidden without changing normal street
   assert.match(malformedHtml,/Reynoldsville, PA 15851, USA/);
   assert.doesNotMatch(malformedHtml,/936837|149838/);
 
+  const carlisle=normalizedStop({address:'17015, mile marker 38, 38 I-81, Carlisle, PA 17015, USA'});
+  const carlisleHtml=(await planned([{targetMinutes:150,stop:carlisle}])).element('stops').innerHTML;
+  assert.match(carlisleHtml,/Carlisle, PA 17015, USA/);
+  assert.doesNotMatch(carlisleHtml,/17015, mile marker 38|38 I-81/);
+
   const normal=normalizedStop({address:'12345 Main St, Springfield, PA 19000, USA'});
   const normalHtml=(await planned([{targetMinutes:150,stop:normal}])).element('stops').innerHTML;
   assert.match(normalHtml,/12345 Main St, Springfield, PA 19000, USA/);

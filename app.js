@@ -67,6 +67,16 @@ function timingLabel(actual,target){
 }
 // Escape every public string before inserting recommendation markup.
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function displayAddress(value){
+  if(typeof value!=="string") return null;
+  const text=value.trim().replace(/\s+/g," ");
+  if(!text) return null;
+  const parts=text.split(",").map(part=>part.trim()).filter(Boolean);
+  // Some route-search results include provider-only numeric location codes ahead of the useful locality.
+  // For that narrow malformed pattern, show the city/state/ZIP tail rather than inventing a street address.
+  if(parts.length>=4&&/^\d{5,}$/.test(parts[0])&&/^\d{5,}\s+\S/.test(parts[1])) return parts.slice(-3).join(", ");
+  return text;
+}
 function readableType(type){
   const normalized=type.replace(/[_-]/g," ").trim();
   if(normalized==="dedicated dog area") return "Dog area";
@@ -104,7 +114,7 @@ function renderRecommendation({targetMinutes,stop},index){
   if(supported(traffic)&&["low","medium","high"].includes(traffic.value)) tags.push(`${readableType(traffic.value)} dog traffic${traffic.confidence==="inferred"?" · inferred":""}`);
   const dogs=stop.attributes?.dogsAllowed;
   const dogAccess=dogs?.value===true&&supported(dogs)?null:"Dog access not confirmed";
-  const evidenceLabel={strong:"STRONG EVIDENCE",moderate:"MODERATE EVIDENCE",limited:"LIMITED EVIDENCE",very_limited:"VERY LIMITED EVIDENCE"}[stop.pawstop.evidenceStrength];
+  const evidenceLabel={strong:"MORE DETAILS CONFIRMED",moderate:"SOME DETAILS CONFIRMED",limited:"SOME DETAILS UNCONFIRMED",very_limited:"MOST DETAILS UNCONFIRMED"}[stop.pawstop.evidenceStrength];
   const detour=Math.round(stop.route.detourMinutes);
   const navigation=recommendationNavUrl(stop);
   const website=safePublicUrl(stop.verification?.placeWebsiteUrl);
@@ -113,7 +123,7 @@ function renderRecommendation({targetMinutes,stop},index){
     ||!/^dog(?:s)? (?:access|permission|allowance|allowed)(?: is| are|:)? (?:not (?:yet )?confirmed|unconfirmed|unknown|uncertain|not (?:yet )?verified|not known)[.!]?$/i.test(reason.trim())).slice(0,4);
   return `<article class="stop recommended real-stop">${label}
     <div class="stop-head"><h3>${escapeHtml(stop.name)}</h3><span class="match">${Math.round(stop.pawstop.matchScore)} FIT</span></div>
-    ${typeof stop.address==="string"&&stop.address.trim()?`<p class="place">${escapeHtml(stop.address)}</p>`:""}
+    ${displayAddress(stop.address)?`<p class="place">${escapeHtml(displayAddress(stop.address))}</p>`:""}
     <div class="recommendation-summary">${typeof stop.primaryType==="string"&&stop.primaryType.trim()?`<span class="type-badge">${escapeHtml(readableType(stop.primaryType))}</span>`:""}${evidenceLabel?`<span class="evidence-badge">${evidenceLabel}</span>`:""}</div>
     <div class="recommendation-timing"><span>${formatMinutes(stop.route.tripMinutes)} into trip · ${detour?`+${detour} min detour`:"No meaningful route detour"}</span><span>${escapeHtml(stop.route.timingLabel)}</span></div>
     ${tags.length?`<div class="tags">${tags.map(tag=>`<span>${escapeHtml(tag)}</span>`).join("")}</div>`:""}
@@ -126,7 +136,7 @@ function renderRecommendation({targetMinutes,stop},index){
 function renderStops(){
   const route=routePlan.route;
   $("routeMetrics").textContent=`${formatMinutes(route.durationMinutes)} driving · ${(route.distanceMeters/1609.344).toLocaleString(undefined,{maximumFractionDigits:0})} miles · Traffic not included`;
-  $("routeLogic").textContent="Pawstop ranks real stops around each planned break using route timing, detour, and the preferences with available evidence. Gaps remain explicit where no strong match was found.";
+  $("routeLogic").textContent="Pawstop looks for real stops near each planned break, then weighs timing, detour, and the preferences it can verify. If no strong option is found, Pawstop leaves that break open rather than forcing a poor match.";
   $("stops").innerHTML=routePlan.recommendations.map(renderRecommendation).join("")||'<article class="stop"><h3>No planned breaks before arrival</h3><p class="meta">This route is within your selected break cadence. Stop whenever your dog needs a break.</p></article>';
 }
 

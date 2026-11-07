@@ -73,7 +73,9 @@ function displayAddress(value){
   if(!text) return null;
   const parts=text.split(",").map(part=>part.trim()).filter(Boolean);
   // Some route-search results include provider-only numeric location codes ahead of the useful locality.
-  // For that narrow malformed pattern, show the city/state/ZIP tail rather than inventing a street address.
+  // For those narrow malformed US patterns, show the trustworthy city/state/ZIP tail rather than inventing a street address.
+  const usLocalityTail=parts.at(-1)==="USA"&&/^[A-Z]{2}\s+\d{5}(?:-\d{4})?$/.test(parts.at(-2)||"");
+  if(usLocalityTail&&parts.length>=5&&/^\d{5,}$/.test(parts[0])) return parts.slice(-3).join(", ");
   if(parts.length>=4&&/^\d{5,}$/.test(parts[0])&&/^\d{5,}\s+\S/.test(parts[1])) return parts.slice(-3).join(", ");
   return text;
 }

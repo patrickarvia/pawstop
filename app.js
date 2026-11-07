@@ -79,6 +79,16 @@ function displayAddress(value){
   if(parts.length>=4&&/^\d{5,}$/.test(parts[0])&&/^\d{5,}\s+\S/.test(parts[1])) return parts.slice(-3).join(", ");
   return text;
 }
+function displayStopName(stop){
+  const name=typeof stop?.name==="string"?stop.name.trim():"";
+  if(!name) return name;
+  const rawAddress=typeof stop?.address==="string"?stop.address.trim():"";
+  const firstAddressPart=rawAddress.split(",")[0]?.trim()||"";
+  const restAreaType=stop.primaryType==="rest-area"||stop.primaryType==="rest_area";
+  const subFacility=/^(?:truckers?'? lounge|restrooms?|restroom building|food court|vending(?: area)?|lounge)$/i.test(name);
+  const namedFacility=/(?:service plaza|rest area|welcome center|travel center)$/i.test(firstAddressPart);
+  return restAreaType&&subFacility&&namedFacility?firstAddressPart:name;
+}
 function readableType(type){
   const normalized=type.replace(/[_-]/g," ").trim();
   if(normalized==="dedicated dog area") return "Dog area";
@@ -124,7 +134,7 @@ function renderRecommendation({targetMinutes,stop},index){
   const why=stop.pawstop.why.filter(reason=>dogs?.confidence!=="unknown"
     ||!/^dog(?:s)? (?:access|permission|allowance|allowed)(?: is| are|:)? (?:not (?:yet )?confirmed|unconfirmed|unknown|uncertain|not (?:yet )?verified|not known)[.!]?$/i.test(reason.trim())).slice(0,4);
   return `<article class="stop recommended real-stop">${label}
-    <div class="stop-head"><h3>${escapeHtml(stop.name)}</h3><span class="match">${Math.round(stop.pawstop.matchScore)} FIT</span></div>
+    <div class="stop-head"><h3>${escapeHtml(displayStopName(stop))}</h3><span class="match">${Math.round(stop.pawstop.matchScore)} MATCH</span></div>
     ${displayAddress(stop.address)?`<p class="place">${escapeHtml(displayAddress(stop.address))}</p>`:""}
     <div class="recommendation-summary">${typeof stop.primaryType==="string"&&stop.primaryType.trim()?`<span class="type-badge">${escapeHtml(readableType(stop.primaryType))}</span>`:""}${evidenceLabel?`<span class="evidence-badge">${evidenceLabel}</span>`:""}</div>
     <div class="recommendation-timing"><span>${formatMinutes(stop.route.tripMinutes)} into trip · ${detour?`+${detour} min detour`:"No meaningful route detour"}</span><span>${escapeHtml(stop.route.timingLabel)}</span></div>

@@ -86,7 +86,7 @@ async function planned(recommendations){
 test('normalized recommendation renders identity, product match, real timing, and backend explanations',async()=>{
   const stop=normalizedStop();const before=JSON.stringify(stop);
   const b=await planned([{targetMinutes:150,stop}]);const html=b.element('stops').innerHTML;
-  for(const text of ['PLANNED BREAK 1 · 2h 30m','Riverside Meadow','Recreation area','12 River Road','82 FIT','2h 24m into trip','+6 min detour','Close to planned break','Reported restrooms available.','Inferred: open grass.','Restrooms','Parking','Large grass · inferred','Low dog traffic · inferred','Dog access not confirmed']) assert.ok(html.includes(text),text);
+  for(const text of ['PLANNED BREAK 1 · 2h 30m','Riverside Meadow','Recreation area','12 River Road','82 MATCH','2h 24m into trip','+6 min detour','Close to planned break','Reported restrooms available.','Inferred: open grass.','Restrooms','Parking','Large grass · inferred','Low dog traffic · inferred','Dog access not confirmed']) assert.ok(html.includes(text),text);
   assert.ok(html.includes('href="https://maps.google.com/?cid=123&amp;mode=driving" target="_blank" rel="noopener"'));
   assert.doesNotMatch(html,/79\.5|private-place-id|Lighting|No restrooms|dog-friendly|Hess/);
   assert.equal(JSON.stringify(stop),before);
@@ -177,10 +177,10 @@ test('hyphenated and underscored normalized place types display as spaces withou
 });
 
 test('real cards display only normalized evidence-strength badges alongside match',async()=>{
-  for(const [evidenceStrength,label] of [['strong','STRONG EVIDENCE'],['moderate','MODERATE EVIDENCE'],['limited','LIMITED EVIDENCE'],['very_limited','VERY LIMITED EVIDENCE'],[null,null]]){
+  for(const [evidenceStrength,label] of [['strong','MORE DETAILS CONFIRMED'],['moderate','SOME DETAILS CONFIRMED'],['limited','SOME DETAILS UNCONFIRMED'],['very_limited','MOST DETAILS UNCONFIRMED'],[null,null]]){
     const stop=normalizedStop();stop.pawstop={...stop.pawstop,evidenceStrength,evidenceCoverage:40,why:['Dog access is not confirmed.']};
     const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
-    assert.match(html,/82 FIT/);
+    assert.match(html,/82 MATCH/);
     if(label)assert.ok(html.includes(`<span class="evidence-badge">${label}</span>`));else assert.doesNotMatch(html,/class="evidence-badge"/);
     assert.doesNotMatch(html,/<li>Dog access is not confirmed[.]<\/li>/);assert.match(html,/class="dog-access">Dog access not confirmed/);assert.doesNotMatch(html,/40%|confidence percentage|safety confidence/);
   }
@@ -231,7 +231,7 @@ test('planner demo cannot interrupt an in-flight real route request',async()=>{
 });
 
 
-test('mixed real recommendations render selective evidence, FIT, gaps, and API order',async()=>{
+test('mixed real recommendations render selective evidence, MATCH, gaps, and API order',async()=>{
   const first=normalizedStop({lat:40.2,lng:-74.3});
   first.attributes.largeGrass={value:null,confidence:'unknown'};
   first.attributes.dogTraffic={value:null,confidence:'unknown'};
@@ -239,8 +239,8 @@ test('mixed real recommendations render selective evidence, FIT, gaps, and API o
   second.route={...second.route,tripMinutes:302,targetMinutes:300};
   second.attributes.dogsAllowed={value:true,confidence:'confirmed'};
   const html=(await planned([{targetMinutes:150,stop:first},{targetMinutes:300,stop:second},{targetMinutes:450,stop:null}])).element('stops').innerHTML;
-  for(const text of ['Riverside Meadow','Second Park','82 FIT','Restrooms','Parking','Dogs allowed','Dog access not confirmed','No strong Pawstop match'])assert.ok(html.includes(text),text);
-  assert.doesNotMatch(html,/% MATCH|Stop location not yet available|Hess/);
+  for(const text of ['Riverside Meadow','Second Park','82 MATCH','Restrooms','Parking','Dogs allowed','Dog access not confirmed','No strong Pawstop match'])assert.ok(html.includes(text),text);
+  assert.doesNotMatch(html,/% MATCH|% FIT|Stop location not yet available|Hess/);
   assert.doesNotMatch(html.split('</article>')[0],/Large grass|Low dog traffic/);
   assert.equal((html.match(/Dog access not confirmed/g)||[]).length,1);
   assert.ok(html.indexOf('Riverside Meadow')<html.indexOf('Second Park'));
@@ -287,4 +287,59 @@ test('explanations stay compact and unknown dog access remains visible beyond tr
 });
 test('active frontend copy has no stale discovery placeholders',()=>{
   for(const file of ['../app.js','../index.html'])assert.doesNotMatch(fs.readFileSync(require.resolve(file),'utf8'),/Stop locations are coming next|Real stop discovery is the next V2.2 phase|no real stop recommendations yet/);
+});
+
+
+test('tester-facing header uses beta rather than internal phase language',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  assert.match(html,/class="version">BETA<\/span>/);
+  assert.doesNotMatch(html,/V2\.2 PHASE 1/);
+});
+
+test('malformed provider address codes are hidden without changing normal street addresses',async()=>{
+  const malformed=normalizedStop({address:'936837, 149838 State Rte 1830, Reynoldsville, PA 15851, USA'});
+  const malformedHtml=(await planned([{targetMinutes:150,stop:malformed}])).element('stops').innerHTML;
+  assert.match(malformedHtml,/Reynoldsville, PA 15851, USA/);
+  assert.doesNotMatch(malformedHtml,/936837|149838/);
+
+  const carlisle=normalizedStop({address:'17015, mile marker 38, 38 I-81, Carlisle, PA 17015, USA'});
+  const carlisleHtml=(await planned([{targetMinutes:150,stop:carlisle}])).element('stops').innerHTML;
+  assert.match(carlisleHtml,/Carlisle, PA 17015, USA/);
+  assert.doesNotMatch(carlisleHtml,/17015, mile marker 38|38 I-81/);
+
+  const normal=normalizedStop({address:'12345 Main St, Springfield, PA 19000, USA'});
+  const normalHtml=(await planned([{targetMinutes:150,stop:normal}])).element('stops').innerHTML;
+  assert.match(normalHtml,/12345 Main St, Springfield, PA 19000, USA/);
+});
+
+test('route explanation uses consumer-facing recommendation language',()=>{
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(app,/looks for real stops near each planned break/);
+  assert.match(app,/leaves that break open rather than forcing a poor match/);
+  assert.doesNotMatch(app,/Gaps remain explicit where no strong match was found/);
+});
+
+
+test('rest-area sub-facility names use the named service plaza when available',async()=>{
+  const stop=normalizedStop({
+    name:'Truckers Lounge',
+    primaryType:'rest-area',
+    address:'Middle Ridge Service Plaza, Ohio Tpke Westbound, Amherst, OH 44001, USA'
+  });
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.match(html,/Middle Ridge Service Plaza/);
+  assert.doesNotMatch(html,/>Truckers Lounge</);
+  assert.match(html,/82 MATCH/);
+
+  const ordinary=normalizedStop({name:'Willington Rest Area, I-84 Eastbound',primaryType:'rest-area',address:'I-84, Willington, CT 06279, USA'});
+  const ordinaryHtml=(await planned([{targetMinutes:150,stop:ordinary}])).element('stops').innerHTML;
+  assert.match(ordinaryHtml,/Willington Rest Area, I-84 Eastbound/);
+});
+
+test('route heading keeps each city-state label together on mobile',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  assert.match(html,/class="route-destination"/);
+  assert.match(css,/#routeFrom,.route-destination\{white-space:nowrap\}/);
+  assert.match(css,/#route h2\{overflow-wrap:normal\}/);
 });

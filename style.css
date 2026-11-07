@@ -17,6 +17,8 @@ h1,h2{font-family:Georgia,"Times New Roman",serif;color:var(--pine);font-weight:
 h1{font-size:54px;line-height:1.04;margin:0 0 22px;position:relative}
 h1::after{content:"";display:block;width:64px;height:12px;margin-top:24px;border-top:1px solid var(--clay);border-right:1px solid var(--clay);border-radius:0 10px 0 0}
 h2{font-size:34px;line-height:1.12;margin:10px 0 14px;overflow-wrap:anywhere}
+#routeFrom,.route-destination{white-space:nowrap}
+#route h2{overflow-wrap:normal}
 .lede{font-size:16px;line-height:1.65;color:var(--muted);margin:0 0 30px;max-width:420px}
 .lede.compact{font-size:14px;margin-bottom:20px}
 .card,.hero-card{background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:24px;box-shadow:0 12px 30px rgba(23,55,47,.055)}

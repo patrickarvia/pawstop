@@ -11,8 +11,9 @@ const stops=[
 const $=id=>document.getElementById(id);
 const NATIVE_API_ORIGIN="https://pawstop-one.vercel.app";
 function apiUrl(path){
-  const native=window.Capacitor?.isNativePlatform?.()===true||location.protocol==="capacitor:";
-  return native?NATIVE_API_ORIGIN+path:path;
+  const capacitorNative=typeof window!=="undefined"&&window.Capacitor?.isNativePlatform?.()===true;
+  const capacitorProtocol=typeof location!=="undefined"&&location.protocol==="capacitor:";
+  return capacitorNative||capacitorProtocol?NATIVE_API_ORIGIN+path:path;
 }
 let preferences={grass:true,traffic:true,restrooms:true,detour:true,fenced:false,lighting:false};
 let routePlan=null;

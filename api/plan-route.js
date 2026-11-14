@@ -15,9 +15,15 @@ const MESSAGES = {
 };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = (value, max) => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
+const validCoordinates = value => value === undefined || (
+  object(value)
+  && Number.isFinite(value.latitude) && value.latitude >= -90 && value.latitude <= 90
+  && Number.isFinite(value.longitude) && value.longitude >= -180 && value.longitude <= 180
+);
 
 function validInput(body) {
   return object(body) && text(body.origin, 500) && text(body.destination, 500) && text(body.dogName, 100)
+    && validCoordinates(body.originCoordinates)
     && ['puppy', 'adult', 'senior'].includes(body.lifeStage)
     && Number.isFinite(body.breakCadenceMinutes) && body.breakCadenceMinutes >= 1 && body.breakCadenceMinutes <= 1440
     && Number.isFinite(body.maxDetourMinutes) && body.maxDetourMinutes >= 0 && body.maxDetourMinutes <= 1440
@@ -85,7 +91,9 @@ module.exports = async function handler(req, res) {
         'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline'
       },
       body: JSON.stringify({
-        origin: { address: body.origin.trim() },
+        origin: body.originCoordinates
+          ? { location: { latLng: { latitude: body.originCoordinates.latitude, longitude: body.originCoordinates.longitude } } }
+          : { address: body.origin.trim() },
         destination: { address: body.destination.trim() },
         travelMode: 'DRIVE',
         // Temporary Phase 1 choice; the final V2.2 traffic mode remains open.

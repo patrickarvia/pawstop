@@ -10,18 +10,52 @@ const stops=[
 
 const $=id=>document.getElementById(id);
 const NATIVE_API_ORIGIN="https://pawstop-one.vercel.app";
-function apiUrl(path){
+const NATIVE_PROFILE_KEY="pawstop.nativeProfile.v1";
+function isNativeApp(){
   const capacitorNative=typeof window!=="undefined"&&window.Capacitor?.isNativePlatform?.()===true;
   const capacitorProtocol=typeof location!=="undefined"&&location.protocol==="capacitor:";
-  return capacitorNative||capacitorProtocol?NATIVE_API_ORIGIN+path:path;
+  return capacitorNative||capacitorProtocol;
 }
+function nativeBridge(){return typeof window!=="undefined"?window.PawstopNative:null}
+function apiUrl(path){return isNativeApp()?NATIVE_API_ORIGIN+path:path}
 let preferences={grass:true,traffic:true,restrooms:true,detour:true,fenced:false,lighting:false};
 let routePlan=null;
 let routeInputs=null;
+let currentOriginCoordinates=null;
 let lifeStage="Puppy", cadenceMinutes=150;
 let avoidRelief=true, maxDetour=10, dogName="Conan", current=null, urgentWindow=30;
 
-document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{b.classList.toggle("active");preferences[b.dataset.pref]=b.classList.contains("active");b.setAttribute("aria-pressed",b.classList.contains("active"))});
+function saveNativeProfile(){
+  if(!isNativeApp()||typeof localStorage==="undefined") return;
+  try{
+    localStorage.setItem(NATIVE_PROFILE_KEY,JSON.stringify({
+      dog:$("dog").value,
+      age:$("age").value,
+      breakEvery:$("break").value,
+      detour:$("detour").value,
+      avoidRelief:$("avoidRelief").checked,
+      preferences
+    }));
+  }catch{}
+}
+function restoreNativeProfile(){
+  if(!isNativeApp()||typeof localStorage==="undefined") return;
+  try{
+    const saved=JSON.parse(localStorage.getItem(NATIVE_PROFILE_KEY)||"null");
+    if(!saved||typeof saved!=="object") return;
+    if(typeof saved.dog==="string") $("dog").value=saved.dog;
+    if(["Puppy","Adult","Senior"].includes(saved.age)) $("age").value=saved.age;
+    if(["2","2.5","3"].includes(saved.breakEvery)) $("break").value=saved.breakEvery;
+    if(["5","10","15"].includes(saved.detour)) $("detour").value=saved.detour;
+    if(typeof saved.avoidRelief==="boolean") $("avoidRelief").checked=saved.avoidRelief;
+    if(saved.preferences&&typeof saved.preferences==="object"){
+      for(const key of Object.keys(preferences)) if(typeof saved.preferences[key]==="boolean") preferences[key]=saved.preferences[key];
+      document.querySelectorAll(".chip").forEach(b=>b.classList.toggle("active",preferences[b.dataset.pref]===true));
+    }
+  }catch{}
+}
+
+document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{b.classList.toggle("active");preferences[b.dataset.pref]=b.classList.contains("active");b.setAttribute("aria-pressed",b.classList.contains("active"));saveNativeProfile()});
 document.querySelectorAll(".time-pill").forEach(b=>b.onclick=()=>{document.querySelectorAll(".time-pill").forEach(x=>x.classList.remove("active"));b.classList.add("active");urgentWindow=+b.dataset.window;renderUrgent(bestForWindow(urgentWindow));syncSelectionState()});
 
 // Presentation state only; ranking, preferences, and navigation remain unchanged.
@@ -31,6 +65,38 @@ function syncSelectionState(alternative="best"){
   document.querySelectorAll("[data-alt]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.alt===alternative));
 }
 syncSelectionState();
+restoreNativeProfile();
+syncSelectionState();
+
+for(const id of ["dog","age","break","detour","avoidRelief"]){
+  const field=$(id);
+  if(field) field.onchange=()=>saveNativeProfile();
+}
+$("from").oninput=()=>{currentOriginCoordinates=null};
+if($("useLocation")) $("useLocation").onclick=async()=>{
+  const bridge=nativeBridge();
+  if(!bridge?.getCurrentPosition) return;
+  $("useLocation").disabled=true;
+  $("useLocation").textContent="Finding your location…";
+  $("planError").textContent="";
+  $("planError").classList.add("hidden");
+  try{
+    bridge.impact?.();
+    const position=await bridge.getCurrentPosition();
+    if(!Number.isFinite(position?.latitude)||!Number.isFinite(position?.longitude)) throw new Error("LOCATION_UNAVAILABLE");
+    currentOriginCoordinates={latitude:position.latitude,longitude:position.longitude};
+    $("from").value="Current location";
+    $("planStatus").textContent="Using your current location as the trip start.";
+  }catch{
+    currentOriginCoordinates=null;
+    $("planError").textContent="We couldn't access your current location. Check Location Services and try again.";
+    $("planError").classList.remove("hidden");
+    bridge.error?.();
+  }finally{
+    $("useLocation").disabled=false;
+    $("useLocation").textContent="Use my current location";
+  }
+};
 
 function scoreStop(s){
   let earned=0,possible=0;
@@ -176,12 +242,14 @@ $("planBtn").onclick=async()=>{
   if($("planBtn").disabled) return;
   const request={
     origin:$("from").value.trim(),destination:$("to").value.trim(),
+    ...(currentOriginCoordinates?{originCoordinates:currentOriginCoordinates}:{}),
     dogName:$("dog").value.trim()||"Your dog",lifeStage:$("age").value.toLowerCase(),
     breakCadenceMinutes:Number($("break").value)*60,maxDetourMinutes:Number($("detour").value),
     preferences:{largeGrass:preferences.grass,lowDogTraffic:preferences.traffic,restrooms:preferences.restrooms,
       minimalDetours:preferences.detour,fencedSpace:preferences.fenced,goodLighting:preferences.lighting,
       avoidDedicatedReliefAreas:$("avoidRelief").checked}
   };
+  nativeBridge()?.impact?.();
   $("planBtn").disabled=true;
   $("planBtn").textContent="Building your route…";
   $("planner").setAttribute("aria-busy","true");
@@ -198,7 +266,7 @@ $("planBtn").onclick=async()=>{
       ||!Array.isArray(data.recommendations)||data.recommendations.length!==data.breakTargetsMinutes.length
       ||!data.recommendations.every((r,i)=>r&&r.targetMinutes===data.breakTargetsMinutes[i]&&Object.hasOwn(r,"stop"))) throw new Error("PROVIDER_ERROR");
     routePlan=data;
-    routeInputs={origin:request.origin,destination:request.destination};
+    routeInputs={origin:request.originCoordinates?`${request.originCoordinates.latitude},${request.originCoordinates.longitude}`:request.origin,destination:request.destination};
     dogName=request.dogName;avoidRelief=request.preferences.avoidDedicatedReliefAreas;
     maxDetour=request.maxDetourMinutes;lifeStage=request.lifeStage[0].toUpperCase()+request.lifeStage.slice(1);
     cadenceMinutes=request.breakCadenceMinutes;
@@ -207,16 +275,30 @@ $("planBtn").onclick=async()=>{
     $("breakPlan").textContent="Every "+formatMinutes(cadenceMinutes);
     $("maxDetour").textContent=maxDetour+" min";
     renderStops();
+    saveNativeProfile();
+    nativeBridge()?.success?.();
     $("planner").classList.add("hidden");$("route").classList.remove("hidden");scrollTo(0,0);
   }catch(error){
     $("planError").textContent=Object.hasOwn(routeErrors,error.message)?routeErrors[error.message]:routeErrors.PROVIDER_ERROR;
     $("planError").classList.remove("hidden");
+    nativeBridge()?.error?.();
   }finally{
     $("planBtn").disabled=false;$("planBtn").textContent="Build my Pawstop route →";
     $("planner").setAttribute("aria-busy","false");$("planStatus").textContent="";
   }
 };
 $("backBtn").onclick=()=>{$("route").classList.add("hidden");$("planner").classList.remove("hidden");scrollTo(0,0)};
+if($("shareRoute")) $("shareRoute").onclick=async()=>{
+  const bridge=nativeBridge();
+  if(!bridge?.shareRoute||!routePlan) return;
+  const selected=routePlan.recommendations.filter(r=>r.stop).length;
+  try{
+    await bridge.shareRoute({
+      text:`Pawstop planned ${selected} stop${selected===1?"":"s"} for ${$("routeFrom").textContent} → ${$("routeTo").textContent}.`,
+      url:NATIVE_API_ORIGIN
+    });
+  }catch{}
+};
 
 function urgentEta(s){return s.minutes+s.detour}
 function urgentRank(windowMins){

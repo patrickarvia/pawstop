@@ -18,7 +18,7 @@ Ship Pawstop as a real iPhone app, test it through TestFlight, and submit it to 
 - [x] Add deterministic `www/` mobile bundle build.
 - [x] Add native-aware API routing.
 - [x] Add narrow native CORS support.
-- [ ] Generate the iOS project with Xcode/Capacitor.
+- [x] Generate and validate the iOS project with Capacitor in a clean build environment.
 - [ ] Run Pawstop in an iPhone simulator and on a physical iPhone.
 
 ## Phase 2 — Make it meaningfully app-like
@@ -27,10 +27,10 @@ Before App Store review, add device-native value rather than submitting a thin w
 
 Planned first native features:
 
-- Use current location as the trip origin.
-- Save dog profile, break cadence, detour, and stop preferences on device.
-- Native share sheet for sharing a Pawstop route/result.
-- Native haptic feedback for primary planning actions and successful route creation.
+- [x] Use current location as the trip origin.
+- [x] Save dog profile, break cadence, detour, and stop preferences on device.
+- [x] Native share sheet for sharing a Pawstop route/result.
+- [x] Native haptic feedback for primary planning actions and successful route creation.
 - Proper app icon, launch screen, status bar, safe-area behavior, and offline/error states.
 
 ## Phase 3 — App Store readiness

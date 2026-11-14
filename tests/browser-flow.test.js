@@ -343,3 +343,11 @@ test('route heading keeps each city-state label together on mobile',()=>{
   assert.match(css,/#routeFrom,.route-destination\{white-space:nowrap\}/);
   assert.match(css,/#route h2\{overflow-wrap:normal\}/);
 });
+
+
+test('native shell uses production Pawstop API while web keeps relative routing',()=>{
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(app,/NATIVE_API_ORIGIN="https:\/\/pawstop-one\.vercel\.app"/);
+  assert.match(app,/location\.protocol==="capacitor:"/);
+  assert.match(app,/fetch\(apiUrl\("\/api\/plan-route"\)/);
+});

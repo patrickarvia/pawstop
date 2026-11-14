@@ -12,7 +12,7 @@
     "mobile:configure:ios": "node scripts/configure-ios.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": "24.x"
   },
   "dependencies": {
     "@capacitor/core": "8.6.2",

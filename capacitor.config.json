@@ -1,0 +1,10 @@
+{
+  "appId": "com.patrickarvia.pawstop",
+  "appName": "Pawstop",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#F4EFE5"
+  }
+}

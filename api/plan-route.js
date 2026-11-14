@@ -40,8 +40,24 @@ function plannedTargets(duration, cadence) {
   return targets;
 }
 
+const NATIVE_ORIGINS = new Set(['capacitor://localhost', 'http://localhost']);
+function applyCors(req,res){
+  const origin=req.headers?.origin;
+  if(NATIVE_ORIGINS.has(origin)){
+    res.setHeader('Access-Control-Allow-Origin',origin);
+    res.setHeader('Vary','Origin');
+    res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers','Content-Type');
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  applyCors(req,res);
+  if(req.method==='OPTIONS'){
+    if(!NATIVE_ORIGINS.has(req.headers?.origin)) return res.status(403).end();
+    return res.status(204).end();
+  }
   const error = (status, code) => res.status(status).json({ error: { code, message: MESSAGES[code] } });
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');

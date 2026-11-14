@@ -31,7 +31,7 @@ async function invoke(body=input(), response={routes:[route(46800)]}, status=200
     if(options.reject) throw new Error('private provider diagnostic');
     return {ok:status>=200&&status<300,status,json:async()=>{if(options.invalidJson) throw new Error('private provider body');return response}};
   };
-  const res={headers:{},setHeader(k,v){this.headers[k]=v},status(s){this.statusCode=s;return this},json(b){this.body=b;return this}};
+  const res={headers:{},setHeader(k,v){this.headers[k]=v},status(s){this.statusCode=s;return this},json(b){this.body=b;return this},end(){return this}};
   try {await handler({method:options.method||'POST',headers:{'content-type':options.contentType||'application/json',...(options.origin?{origin:options.origin}:{})},body},res);}
   finally {global.fetch=oldFetch;if(oldKey===undefined) delete process.env.GOOGLE_MAPS_API_KEY;else process.env.GOOGLE_MAPS_API_KEY=oldKey;}
   assert.ok(!JSON.stringify(res.body).includes('test-only-placeholder'));

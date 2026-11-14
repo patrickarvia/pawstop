@@ -15,14 +15,14 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@capacitor/core": "^8.0.0",
-    "@capacitor/ios": "^8.0.0",
-    "@capacitor/geolocation": "^8.0.0",
-    "@capacitor/haptics": "^8.0.0",
-    "@capacitor/share": "^8.0.0"
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2",
+    "@capacitor/geolocation": "8.2.4",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/share": "8.0.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.0.0",
-    "esbuild": "^0.25.0"
+    "@capacitor/cli": "8.6.2",
+    "esbuild": "0.25.12"
   }
 }

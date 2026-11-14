@@ -9,6 +9,12 @@ const stops=[
 ];
 
 const $=id=>document.getElementById(id);
+const NATIVE_API_ORIGIN="https://pawstop-one.vercel.app";
+function apiUrl(path){
+  const capacitorNative=typeof window!=="undefined"&&window.Capacitor?.isNativePlatform?.()===true;
+  const capacitorProtocol=typeof location!=="undefined"&&location.protocol==="capacitor:";
+  return capacitorNative||capacitorProtocol?NATIVE_API_ORIGIN+path:path;
+}
 let preferences={grass:true,traffic:true,restrooms:true,detour:true,fenced:false,lighting:false};
 let routePlan=null;
 let routeInputs=null;
@@ -183,7 +189,7 @@ $("planBtn").onclick=async()=>{
   $("planError").classList.add("hidden");
   $("planStatus").textContent="Finding your driving route…";
   try{
-    const response=await fetch("/api/plan-route",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(request),signal:AbortSignal.timeout(20000)});
+    const response=await fetch(apiUrl("/api/plan-route"),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(request),signal:AbortSignal.timeout(20000)});
     const data=await response.json();
     if(!response.ok) throw new Error(Object.hasOwn(routeErrors,data?.error?.code)?data.error.code:"PROVIDER_ERROR");
     if(!data?.route||!Number.isFinite(data.route.durationMinutes)||data.route.durationMinutes<=0

@@ -31,11 +31,12 @@ async function invoke(body=input(), response={routes:[route(46800)]}, status=200
     if(options.reject) throw new Error('private provider diagnostic');
     return {ok:status>=200&&status<300,status,json:async()=>{if(options.invalidJson) throw new Error('private provider body');return response}};
   };
-  const res={headers:{},setHeader(k,v){this.headers[k]=v},status(s){this.statusCode=s;return this},json(b){this.body=b;return this}};
-  try {await handler({method:options.method||'POST',headers:{'content-type':options.contentType||'application/json'},body},res);}
+  const res={headers:{},setHeader(k,v){this.headers[k]=v},status(s){this.statusCode=s;return this},json(b){this.body=b;return this},end(){return this}};
+  try {await handler({method:options.method||'POST',headers:{'content-type':options.contentType||'application/json',...(options.origin?{origin:options.origin}:{})},body},res);}
   finally {global.fetch=oldFetch;if(oldKey===undefined) delete process.env.GOOGLE_MAPS_API_KEY;else process.env.GOOGLE_MAPS_API_KEY=oldKey;}
-  assert.ok(!JSON.stringify(res.body).includes('test-only-placeholder'));
-  assert.ok(!JSON.stringify(res.body).includes('private provider'));
+  const publicBody=JSON.stringify(res.body??null);
+  assert.ok(!publicBody.includes('test-only-placeholder'));
+  assert.ok(!publicBody.includes('private provider'));
   return {...res,called,sent,searches,details};
 }
 test('normalizes route and targets with real selection and partial gaps; sends only route inputs',async()=>{
@@ -325,4 +326,21 @@ test('Phase 2H projects only normalized review evidence and verification; diagno
       }
     });
   }
+});
+
+
+test('native Capacitor origin receives narrow CORS headers and preflight support',async()=>{
+  const post=await invoke(input(),undefined,200,{...selectable(46800),origin:'capacitor://localhost'});
+  assert.equal(post.headers['Access-Control-Allow-Origin'],'capacitor://localhost');
+  assert.equal(post.headers['Access-Control-Allow-Methods'],'POST, OPTIONS');
+  assert.equal(post.headers['Access-Control-Allow-Headers'],'Content-Type');
+  const preflight=await invoke(input(),{},200,{method:'OPTIONS',origin:'capacitor://localhost'});
+  assert.equal(preflight.statusCode,204);
+  assert.equal(preflight.headers['Access-Control-Allow-Origin'],'capacitor://localhost');
+});
+
+test('unknown origins do not receive native CORS access',async()=>{
+  const r=await invoke(input(),{},200,{method:'OPTIONS',origin:'https://example.com'});
+  assert.equal(r.statusCode,403);
+  assert.equal(r.headers['Access-Control-Allow-Origin'],undefined);
 });

@@ -34,8 +34,9 @@ async function invoke(body=input(), response={routes:[route(46800)]}, status=200
   const res={headers:{},setHeader(k,v){this.headers[k]=v},status(s){this.statusCode=s;return this},json(b){this.body=b;return this},end(){return this}};
   try {await handler({method:options.method||'POST',headers:{'content-type':options.contentType||'application/json',...(options.origin?{origin:options.origin}:{})},body},res);}
   finally {global.fetch=oldFetch;if(oldKey===undefined) delete process.env.GOOGLE_MAPS_API_KEY;else process.env.GOOGLE_MAPS_API_KEY=oldKey;}
-  assert.ok(!JSON.stringify(res.body).includes('test-only-placeholder'));
-  assert.ok(!JSON.stringify(res.body).includes('private provider'));
+  const publicBody=JSON.stringify(res.body??null);
+  assert.ok(!publicBody.includes('test-only-placeholder'));
+  assert.ok(!publicBody.includes('private provider'));
   return {...res,called,sent,searches,details};
 }
 test('normalizes route and targets with real selection and partial gaps; sends only route inputs',async()=>{

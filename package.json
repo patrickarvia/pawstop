@@ -6,18 +6,23 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "mobile:build": "node scripts/build-mobile.mjs",
-    "mobile:add:ios": "npm run mobile:build && npx cap add ios",
-    "mobile:sync": "npm run mobile:build && npx cap sync ios",
-    "mobile:open": "npm run mobile:sync && npx cap open ios"
+    "mobile:add:ios": "npm run mobile:build && npx cap add ios && npm run mobile:configure:ios",
+    "mobile:sync": "npm run mobile:build && npx cap sync ios && npm run mobile:configure:ios",
+    "mobile:open": "npm run mobile:sync && npx cap open ios",
+    "mobile:configure:ios": "node scripts/configure-ios.mjs"
   },
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
-    "@capacitor/core": "^8.0.0",
-    "@capacitor/ios": "^8.0.0"
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2",
+    "@capacitor/geolocation": "8.2.4",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/share": "8.0.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.0.0"
+    "@capacitor/cli": "8.6.2",
+    "esbuild": "0.25.12"
   }
 }

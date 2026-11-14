@@ -351,3 +351,28 @@ test('native shell uses production Pawstop API while web keeps relative routing'
   assert.match(app,/location\.protocol==="capacitor:"/);
   assert.match(app,/fetch\(apiUrl\("\/api\/plan-route"\)/);
 });
+
+
+test('native app UI and behavior hooks stay isolated from the web surface',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(html,/id="useLocation" class="native-only native-action"/);
+  assert.match(html,/id="shareRoute" class="native-only native-share"/);
+  assert.match(css,/\.native-only\{display:none!important\}/);
+  assert.match(css,/\.native-app \.native-only\{display:inline-flex!important\}/);
+  assert.match(app,/currentOriginCoordinates/);
+  assert.match(app,/PawstopNative/);
+  assert.match(app,/pawstop\.nativeProfile\.v1/);
+  assert.match(app,/originCoordinates:currentOriginCoordinates/);
+});
+
+test('mobile build injects a bundled native bridge with location share and haptics',()=>{
+  const build=fs.readFileSync(require.resolve('../scripts/build-mobile.mjs'),'utf8');
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(build,/native-bridge\.js/);
+  assert.match(build,/esbuild/);
+  assert.match(bridge,/@capacitor\/geolocation/);
+  assert.match(bridge,/@capacitor\/share/);
+  assert.match(bridge,/@capacitor\/haptics/);
+});

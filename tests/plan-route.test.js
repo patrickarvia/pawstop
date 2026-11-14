@@ -56,7 +56,7 @@ test('short route, exact arrival boundary, fractional duration and first valid r
 test('validates every required field before calling provider',async()=>{
   for(const key of Object.keys(input())){const b=input();delete b[key];const r=await invoke(b);assert.equal(r.body.error.code,'INVALID_INPUT');assert.equal(r.called,false);}
   for(const key of Object.keys(input().preferences)){const b=input();delete b.preferences[key];assert.equal((await invoke(b)).body.error.code,'INVALID_INPUT');}
-  for(const b of [null,[], '{broken', {...input(),origin:' '},{...input(),lifeStage:'Puppy'},{...input(),breakCadenceMinutes:0},{...input(),breakCadenceMinutes:Infinity},{...input(),breakCadenceMinutes:'150'},{...input(),maxDetourMinutes:-1},{...input(),dogName:1},{...input(),preferences:{...input().preferences,largeGrass:'true'}}]) assert.equal((await invoke(b)).body.error.code,'INVALID_INPUT');
+  for(const b of [null,[], '{broken', {...input(),origin:' '},{...input(),lifeStage:'Puppy'},{...input(),breakCadenceMinutes:0},{...input(),breakCadenceMinutes:Infinity},{...input(),breakCadenceMinutes:'150'},{...input(),maxDetourMinutes:-1},{...input(),dogName:1},{...input(),originCoordinates:{latitude:91,longitude:0}},{...input(),originCoordinates:{latitude:40,longitude:'-74'}},{...input(),preferences:{...input().preferences,largeGrass:'true'}}]) assert.equal((await invoke(b)).body.error.code,'INVALID_INPUT');
   assert.equal((await invoke(input(),{},200,{contentType:'text/plain'})).statusCode,400);
   const r=await invoke(input(),{},200,{method:'GET'});assert.equal(r.statusCode,405);assert.equal(r.headers.Allow,'POST');
 });
@@ -343,4 +343,15 @@ test('unknown origins do not receive native CORS access',async()=>{
   const r=await invoke(input(),{},200,{method:'OPTIONS',origin:'https://example.com'});
   assert.equal(r.statusCode,403);
   assert.equal(r.headers['Access-Control-Allow-Origin'],undefined);
+});
+
+
+test('native current-location coordinates become the route origin without leaking into destination',async()=>{
+  const body={...input(),origin:'Current location',originCoordinates:{latitude:40.7178,longitude:-74.0431}};
+  const r=await invoke(body,undefined,200,selectable(46800));
+  assert.equal(r.statusCode,200);
+  const sent=JSON.parse(r.sent.body);
+  assert.deepEqual(sent.origin,{location:{latLng:{latitude:40.7178,longitude:-74.0431}}});
+  assert.deepEqual(sent.destination,{address:'Nashville, TN'});
+  assert.equal(JSON.stringify(sent).includes('Current location'),false);
 });

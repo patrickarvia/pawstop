@@ -404,3 +404,12 @@ test('native location tries WKWebView after plugin permission failures',()=>{
   assert.match(bridge,/throw new Error\('LOCATION_DENIED'\)/);
   assert.match(bridge,/throw new Error\('LOCATION_UNAVAILABLE'\)/);
 });
+
+
+test('native iOS shell explicitly allows vertical route scrolling',()=>{
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  assert.match(css,/html\.native-app,html\.native-app body\{[^}]*overflow-y:auto!important/);
+  assert.match(css,/-webkit-overflow-scrolling:touch/);
+  assert.match(css,/touch-action:pan-y/);
+  assert.match(css,/html\.native-app main\{min-height:100vh;height:auto;overflow:visible\}/);
+});

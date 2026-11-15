@@ -376,3 +376,13 @@ test('mobile build injects a bundled native bridge with location share and hapti
   assert.match(bridge,/@capacitor\/share/);
   assert.match(bridge,/@capacitor\/haptics/);
 });
+
+
+test('native location bridge bounds plugin calls and falls back to WKWebView geolocation',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(bridge,/function withTimeout/);
+  assert.match(bridge,/Geolocation\.getCurrentPosition/);
+  assert.match(bridge,/navigator\.geolocation\.getCurrentPosition/);
+  assert.match(bridge,/withTimeout\(pluginPosition\(\), 10000\)/);
+  assert.match(bridge,/withTimeout\(webviewPosition\(\), 10000\)/);
+});

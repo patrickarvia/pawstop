@@ -133,3 +133,6 @@ input:focus,select:focus{outline:2px solid var(--forest);outline-offset:2px;bord
 .native-action:disabled{opacity:.6;cursor:wait}
 .native-share{align-items:center;justify-content:center;min-height:40px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--forest);padding:8px 13px;font-size:11px;font-weight:600;cursor:pointer}
 .native-app main{padding-top:calc(28px + env(safe-area-inset-top,0px))}
+html.native-app,html.native-app body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto!important;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+html.native-app body{position:static!important}
+html.native-app main{min-height:100vh;height:auto;overflow:visible}

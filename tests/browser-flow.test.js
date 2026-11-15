@@ -410,6 +410,15 @@ test('native iOS shell explicitly allows vertical route scrolling',()=>{
   const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
   assert.match(css,/html\.native-app,html\.native-app body\{[^}]*overflow-y:auto!important/);
   assert.match(css,/-webkit-overflow-scrolling:touch/);
-  assert.match(css,/touch-action:pan-y/);
+  assert.match(css,/touch-action:auto!important/);
+  assert.match(css,/html\.native-app button,html\.native-app input,html\.native-app select\{touch-action:auto!important\}/);
   assert.match(css,/html\.native-app main\{min-height:100vh;height:auto;overflow:visible\}/);
+});
+
+
+test('native iOS does not force pan-y or manipulation on interactive controls',()=>{
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  const nativeBlock=css.slice(css.indexOf('html.native-app,html.native-app body'));
+  assert.doesNotMatch(nativeBlock,/touch-action:pan-y/);
+  assert.match(nativeBlock,/button,html\.native-app input,html\.native-app select\{touch-action:auto!important\}/);
 });

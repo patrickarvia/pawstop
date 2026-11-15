@@ -76,8 +76,13 @@ $("from").oninput=()=>{currentOriginCoordinates=null};
 if($("useLocation")) $("useLocation").onclick=async()=>{
   const bridge=nativeBridge();
   if(!bridge?.getCurrentPosition) return;
+  const locationStatus=$("locationStatus");
   $("useLocation").disabled=true;
   $("useLocation").textContent="Finding your location…";
+  if(locationStatus){
+    locationStatus.textContent="Requesting location…";
+    locationStatus.classList.remove("warning");
+  }
   $("planError").textContent="";
   $("planError").classList.add("hidden");
   try{
@@ -86,11 +91,16 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
     if(!Number.isFinite(position?.latitude)||!Number.isFinite(position?.longitude)) throw new Error("LOCATION_UNAVAILABLE");
     currentOriginCoordinates={latitude:position.latitude,longitude:position.longitude};
     $("from").value="Current location";
+    if(locationStatus) locationStatus.textContent="Current location is ready.";
     $("planStatus").textContent="Using your current location as the trip start.";
-  }catch{
+  }catch(error){
     currentOriginCoordinates=null;
-    $("planError").textContent="We couldn't access your current location. Check Location Services and try again.";
-    $("planError").classList.remove("hidden");
+    if(locationStatus){
+      locationStatus.textContent=error?.message==="LOCATION_DENIED"
+        ?"Location access is off for Pawstop. Enable it in iOS Settings or enter a city manually."
+        :"Location wasn’t available. You can try again or enter a city manually.";
+      locationStatus.classList.add("warning");
+    }
     bridge.error?.();
   }finally{
     $("useLocation").disabled=false;

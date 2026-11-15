@@ -8,23 +8,53 @@ async function safeHaptic(run) {
   try { await run(); } catch {}
 }
 
-window.PawstopNative = {
-  async getCurrentPosition() {
-    const status = await Geolocation.checkPermissions();
-    if (status.location !== 'granted') {
-      const requested = await Geolocation.requestPermissions({ permissions: ['location'] });
-      if (requested.location !== 'granted') throw new Error('LOCATION_DENIED');
-    }
-    const position = await Geolocation.getCurrentPosition({
+function withTimeout(promise, ms, code='LOCATION_TIMEOUT') {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(code)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function normalizePosition(position) {
+  const latitude = position?.coords?.latitude;
+  const longitude = position?.coords?.longitude;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('LOCATION_UNAVAILABLE');
+  return { latitude, longitude, accuracy: position.coords.accuracy ?? null };
+}
+
+async function pluginPosition() {
+  const status = await Geolocation.checkPermissions();
+  if (status.location !== 'granted') {
+    const requested = await Geolocation.requestPermissions({ permissions: ['location'] });
+    if (requested.location !== 'granted') throw new Error('LOCATION_DENIED');
+  }
+  return Geolocation.getCurrentPosition({
+    enableHighAccuracy: false,
+    timeout: 8000,
+    maximumAge: 60000
+  });
+}
+
+function webviewPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('LOCATION_UNAVAILABLE'));
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: false,
-      timeout: 10000,
+      timeout: 8000,
       maximumAge: 60000
     });
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      accuracy: position.coords.accuracy
-    };
+  });
+}
+
+window.PawstopNative = {
+  async getCurrentPosition() {
+    try {
+      return normalizePosition(await withTimeout(pluginPosition(), 10000));
+    } catch (error) {
+      if (error?.message === 'LOCATION_DENIED') throw error;
+      return normalizePosition(await withTimeout(webviewPosition(), 10000));
+    }
   },
   impact() {
     return safeHaptic(() => Haptics.impact({ style: ImpactStyle.Light }));

@@ -51,9 +51,13 @@ window.PawstopNative = {
   async getCurrentPosition() {
     try {
       return normalizePosition(await withTimeout(pluginPosition(), 10000));
-    } catch (error) {
-      if (error?.message === 'LOCATION_DENIED') throw error;
-      return normalizePosition(await withTimeout(webviewPosition(), 10000));
+    } catch (pluginError) {
+      try {
+        return normalizePosition(await withTimeout(webviewPosition(), 10000));
+      } catch (webError) {
+        if (pluginError?.message === 'LOCATION_DENIED' || webError?.code === 1) throw new Error('LOCATION_DENIED');
+        throw new Error('LOCATION_UNAVAILABLE');
+      }
     }
   },
   impact() {

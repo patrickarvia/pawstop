@@ -386,3 +386,21 @@ test('native location bridge bounds plugin calls and falls back to WKWebView geo
   assert.match(bridge,/withTimeout\(pluginPosition\(\), 10000\)/);
   assert.match(bridge,/withTimeout\(webviewPosition\(\), 10000\)/);
 });
+
+
+test('native location feedback is shown beside the location button',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(html,/id="locationStatus"/);
+  assert.match(app,/Current location is ready\./);
+  assert.match(app,/Location wasn’t available/);
+  assert.match(app,/Location access is off for Pawstop/);
+});
+
+test('native location tries WKWebView after plugin permission failures',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(bridge,/catch \(pluginError\)/);
+  assert.match(bridge,/withTimeout\(webviewPosition\(\), 10000\)/);
+  assert.match(bridge,/throw new Error\('LOCATION_DENIED'\)/);
+  assert.match(bridge,/throw new Error\('LOCATION_UNAVAILABLE'\)/);
+});

@@ -161,7 +161,11 @@ await writeFile(nativeSwiftUrl, nativeSwift);
 let storyboard = await readFile(storyboardUrl, 'utf8');
 storyboard = storyboard.replace(
   'customClass="CAPBridgeViewController" customModule="Capacitor"',
-  'customClass="ViewController" customModule="App"'
+  'customClass="ViewController" customModule="App" customModuleProvider="target"'
+);
+storyboard = storyboard.replace(
+  'customClass="ViewController" customModule="App" sceneMemberID="viewController"',
+  'customClass="ViewController" customModule="App" customModuleProvider="target" sceneMemberID="viewController"'
 );
 await writeFile(storyboardUrl, storyboard);
 

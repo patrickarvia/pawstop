@@ -20,10 +20,10 @@ for (const [key, value] of entries) {
   if (plist.includes(`<key>${key}</key>`)) continue;
   plist = plist.replace('</dict>', `\t<key>${key}</key>\n\t<string>${value}</string>\n</dict>`);
 }
-if (!plist.includes('<key>CLRequireExplicitServiceSession</key>')) {
+if (!plist.includes('<key>NSLocationRequireExplicitServiceSession</key>')) {
   plist = plist.replace(
     '</dict>',
-    '\t<key>CLRequireExplicitServiceSession</key>\n\t<true/>\n</dict>'
+    '\t<key>NSLocationRequireExplicitServiceSession</key>\n\t<true/>\n</dict>'
   );
 }
 await writeFile(plistUrl, plist);

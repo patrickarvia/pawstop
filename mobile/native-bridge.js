@@ -54,13 +54,20 @@ window.PawstopNative = {
         return normalizePosition(await withTimeout(webviewPosition(), 20000));
       } catch (webError) {
         const pluginCode = pluginError?.code || pluginError?.message || '';
-        if (pluginCode === 'OS-PLUG-GLOC-0003' || webError?.code === 1) throw new Error('LOCATION_DENIED');
-        if (pluginCode === 'OS-PLUG-GLOC-0007') throw new Error('LOCATION_SERVICES_DISABLED');
-        if (pluginCode === 'OS-PLUG-GLOC-0008') throw new Error('LOCATION_RESTRICTED');
-        if (pluginCode === 'OS-PLUG-GLOC-0010') throw new Error('LOCATION_TIMEOUT');
-        const error = new Error('LOCATION_UNAVAILABLE');
-        error.cause = { pluginCode, webCode: webError?.code || null };
-        throw error;
+        const webCode = webError?.code || null;
+        console.warn('Pawstop location diagnostic', { pluginCode, webCode, pluginMessage: pluginError?.message || '', webMessage: webError?.message || '' });
+
+        const makeLocationError = (message) => {
+          const error = new Error(message);
+          error.pawstopDiagnostic = { pluginCode, webCode };
+          return error;
+        };
+
+        if (pluginCode === 'OS-PLUG-GLOC-0003' || webCode === 1) throw makeLocationError('LOCATION_DENIED');
+        if (pluginCode === 'OS-PLUG-GLOC-0007') throw makeLocationError('LOCATION_SERVICES_DISABLED');
+        if (pluginCode === 'OS-PLUG-GLOC-0008') throw makeLocationError('LOCATION_RESTRICTED');
+        if (pluginCode === 'OS-PLUG-GLOC-0010') throw makeLocationError('LOCATION_TIMEOUT');
+        throw makeLocationError('LOCATION_UNAVAILABLE');
       }
     }
   },

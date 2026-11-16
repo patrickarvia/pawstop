@@ -26,6 +26,19 @@ const nativeSwift = `import UIKit
 import CoreLocation
 import Capacitor
 
+@available(iOS 18.0, *)
+private final class PawstopModernLocationSession {
+    let session: CLServiceSession
+
+    init() {
+        session = CLServiceSession(authorization: .whenInUse)
+    }
+
+    func invalidate() {
+        session.invalidate()
+    }
+}
+
 @objc(PawstopLocationPlugin)
 public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     public let identifier = "PawstopLocationPlugin"
@@ -38,6 +51,7 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
     private var pendingCall: CAPPluginCall?
     private var timeoutWorkItem: DispatchWorkItem?
     private var liveUpdateTask: Task<Void, Never>?
+    private var modernSession: AnyObject?
 
     @objc func getCurrentPosition(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
@@ -81,8 +95,25 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
         liveUpdateTask?.cancel()
         timeoutWorkItem?.cancel()
 
+        let session = PawstopModernLocationSession()
+        modernSession = session
+
         let work = DispatchWorkItem { [weak self] in
-            self?.finishPendingRequest(code: "PAWSTOP_LIVEUPDATES_TIMEOUT", message: "Modern Core Location did not provide a position in time.")
+            guard let self else { return }
+            let code: String
+            switch self.manager?.authorizationStatus {
+            case .notDetermined:
+                code = "PAWSTOP_LIVEUPDATES_TIMEOUT_NOT_DETERMINED"
+            case .denied:
+                code = "PAWSTOP_LOCATION_DENIED"
+            case .restricted:
+                code = "PAWSTOP_LOCATION_RESTRICTED"
+            case .authorizedWhenInUse, .authorizedAlways:
+                code = "PAWSTOP_LIVEUPDATES_TIMEOUT_AUTHORIZED"
+            default:
+                code = "PAWSTOP_LIVEUPDATES_TIMEOUT"
+            }
+            self.finishPendingRequest(code: code, message: "Modern Core Location did not provide a position in time.")
         }
         timeoutWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: work)
@@ -158,6 +189,10 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
         timeoutWorkItem = nil
         liveUpdateTask?.cancel()
         liveUpdateTask = nil
+        if #available(iOS 18.0, *), let session = modernSession as? PawstopModernLocationSession {
+            session.invalidate()
+        }
+        modernSession = nil
         manager?.stopUpdatingLocation()
         manager?.delegate = nil
         manager = nil

@@ -538,10 +538,30 @@ test('iOS 18 current-location flow holds an explicit when-in-use service session
 });
 
 
-test('iOS 18 location flow explicitly requests when-in-use authorization before live updates',()=>{
+test('iOS 18 location flow delegates authorization to the explicit service session',()=>{
   const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
-  assert.match(configure,/if #available\(iOS 18\.0, \*\) \{[\s\S]*case \.notDetermined:[\s\S]*manager\.requestWhenInUseAuthorization\(\)/);
-  assert.match(configure,/case \.authorizedWhenInUse, \.authorizedAlways:[\s\S]*self\.startModernLocationUpdates\(\)/);
-  assert.match(configure,/locationManagerDidChangeAuthorization[\s\S]*if #available\(iOS 18\.0, \*\) \{[\s\S]*startModernLocationUpdates\(\)/);
+  assert.match(configure,/if #available\(iOS 18\.0, \*\) \{[\s\S]*case \.notDetermined, \.authorizedWhenInUse, \.authorizedAlways:[\s\S]*self\.startModernLocationUpdates\(\)/);
+  assert.match(configure,/CLRequireExplicitServiceSession/);
+  assert.match(configure,/CLServiceSession\(authorization: \.whenInUse\)/);
   assert.match(configure,/NSLocationWhenInUseUsageDescription/);
+});
+
+
+test('iOS 18 explicit service session owns the authorization prompt',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+
+  assert.match(configure,/CLRequireExplicitServiceSession/);
+  assert.match(configure,/<true\/>/);
+  assert.match(configure,/case \.notDetermined, \.authorizedWhenInUse, \.authorizedAlways:[\s\S]*startModernLocationUpdates\(\)/);
+  assert.match(configure,/CLServiceSession\(authorization: \.whenInUse\)/);
+
+  const modernGate=configure.slice(
+    configure.indexOf('if #available(iOS 18.0, *) {'),
+    configure.indexOf('switch manager.authorizationStatus {', configure.indexOf('if #available(iOS 18.0, *) {') + 1)
+  );
+  assert.doesNotMatch(modernGate,/requestWhenInUseAuthorization/);
+
+  assert.match(configure,/if modernSession == nil/);
+  assert.match(bridge,/withTimeout\(directCoreLocationPosition\(\), 60000, 'PAWSTOP_NATIVE_BRIDGE_TIMEOUT'\)/);
 });

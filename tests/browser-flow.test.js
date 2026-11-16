@@ -523,3 +523,16 @@ test('modern Core Location authorization diagnostics are gated to iOS 18+',()=>{
   assert.doesNotMatch(configure,/#available\(iOS 17\.0, \*\)/);
   assert.doesNotMatch(configure,/@available\(iOS 17\.0, \*\)/);
 });
+
+
+test('iOS 18 current-location flow holds an explicit when-in-use service session',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(configure,/CLServiceSession\(authorization: \.whenInUse\)/);
+  assert.match(configure,/PawstopModernLocationSession/);
+  assert.match(configure,/modernSession = session/);
+  assert.match(configure,/session\.invalidate\(\)/);
+  assert.match(configure,/PAWSTOP_LIVEUPDATES_TIMEOUT_NOT_DETERMINED/);
+  assert.match(configure,/PAWSTOP_LIVEUPDATES_TIMEOUT_AUTHORIZED/);
+  assert.match(bridge,/directCode\.startsWith\('PAWSTOP_LIVEUPDATES_TIMEOUT'\)/);
+});

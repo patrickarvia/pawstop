@@ -24,13 +24,57 @@ function normalizePosition(position) {
 }
 
 async function pluginPosition() {
-  // Capacitor's iOS getCurrentPosition handles the authorization flow itself.
-  // Calling it directly avoids a separate permission preflight getting stuck in
-  // Apple's "Ask Next Time Or When I Share" state.
-  return Geolocation.getCurrentPosition({
-    enableHighAccuracy: false,
-    timeout: 25000,
-    maximumAge: 60000
+  // A short-lived watch is more resilient on iOS than the one-shot request:
+  // transient CoreLocation failures can break getCurrentPosition delivery,
+  // while a watch can keep listening for the next usable fix.
+  return new Promise((resolve, reject) => {
+    let watchId = null;
+    let settled = false;
+    let timer = null;
+
+    const cleanup = async () => {
+      if (!watchId) return;
+      try { await Geolocation.clearWatch({ id: watchId }); } catch {}
+    };
+
+    const finish = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      cleanup();
+      handler(value);
+    };
+
+    timer = setTimeout(() => {
+      const error = new Error('LOCATION_WATCH_TIMEOUT');
+      error.code = 'LOCATION_WATCH_TIMEOUT';
+      finish(reject, error);
+    }, 30000);
+
+    Geolocation.watchPosition({
+      enableHighAccuracy: false,
+      timeout: 45000,
+      maximumAge: 300000
+    }, (position, error) => {
+      if (position) {
+        finish(resolve, position);
+        return;
+      }
+
+      if (!error) return;
+      const code = error.code || error.message || '';
+
+      // Keep listening through recoverable iOS locationUnknown/timeout events.
+      if (code === 'OS-PLUG-GLOC-0002' || code === 'OS-PLUG-GLOC-0010') {
+        console.warn('Pawstop transient location event', { code, message: error.message || '' });
+        return;
+      }
+
+      finish(reject, error);
+    }).then((id) => {
+      watchId = id;
+      if (settled) cleanup();
+    }).catch((error) => finish(reject, error));
   });
 }
 
@@ -48,7 +92,7 @@ function webviewPosition() {
 window.PawstopNative = {
   async getCurrentPosition() {
     try {
-      return normalizePosition(await withTimeout(pluginPosition(), 30000));
+      return normalizePosition(await withTimeout(pluginPosition(), 35000));
     } catch (pluginError) {
       try {
         return normalizePosition(await withTimeout(webviewPosition(), 20000));

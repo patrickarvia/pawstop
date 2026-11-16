@@ -441,3 +441,15 @@ test('native iOS current position delegates authorization to Capacitor and prese
   assert.match(bridge,/OS-PLUG-GLOC-0010/);
   assert.match(bridge,/withTimeout\(pluginPosition\(\), 30000\)/);
 });
+
+
+test('native beta location failures surface the exact plugin diagnostic code',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(bridge,/pawstopDiagnostic/);
+  assert.match(bridge,/Pawstop location diagnostic/);
+  assert.match(app,/Diagnostic:/);
+  assert.match(app,/LOCATION_SERVICES_DISABLED/);
+  assert.match(app,/LOCATION_RESTRICTED/);
+  assert.match(app,/LOCATION_TIMEOUT/);
+});

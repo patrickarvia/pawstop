@@ -37,6 +37,7 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
     private var manager: CLLocationManager?
     private var pendingCall: CAPPluginCall?
     private var timeoutWorkItem: DispatchWorkItem?
+    private var liveUpdateTask: Task<Void, Never>?
 
     @objc func getCurrentPosition(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
@@ -55,6 +56,11 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
             self.manager = manager
             self.pendingCall = call
 
+            if #available(iOS 17.0, *) {
+                self.startModernLocationUpdates()
+                return
+            }
+
             switch manager.authorizationStatus {
             case .notDetermined:
                 manager.requestWhenInUseAuthorization()
@@ -66,6 +72,40 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
                 self.finishPendingRequest(code: "PAWSTOP_LOCATION_RESTRICTED", message: "Location access is restricted.")
             @unknown default:
                 self.finishPendingRequest(code: "PAWSTOP_LOCATION_UNAVAILABLE", message: "Location authorization is unavailable.")
+            }
+        }
+    }
+
+    @available(iOS 17.0, *)
+    private func startModernLocationUpdates() {
+        liveUpdateTask?.cancel()
+        timeoutWorkItem?.cancel()
+
+        let work = DispatchWorkItem { [weak self] in
+            self?.finishPendingRequest(code: "PAWSTOP_LIVEUPDATES_TIMEOUT", message: "Modern Core Location did not provide a position in time.")
+        }
+        timeoutWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: work)
+
+        liveUpdateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let updates = CLLocationUpdate.liveUpdates()
+                for try await update in updates {
+                    if Task.isCancelled { return }
+
+                    if update.authorizationDenied {
+                        self.finishPendingRequest(code: "PAWSTOP_LOCATION_DENIED", message: "Location access is denied.")
+                        return
+                    }
+
+                    if let location = update.location {
+                        self.resolve(location)
+                        return
+                    }
+                }
+            } catch {
+                self.finishPendingRequest(code: "PAWSTOP_LIVEUPDATES_ERROR", message: error.localizedDescription)
             }
         }
     }
@@ -116,6 +156,8 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
     private func cleanup() {
         timeoutWorkItem?.cancel()
         timeoutWorkItem = nil
+        liveUpdateTask?.cancel()
+        liveUpdateTask = nil
         manager?.stopUpdatingLocation()
         manager?.delegate = nil
         manager = nil

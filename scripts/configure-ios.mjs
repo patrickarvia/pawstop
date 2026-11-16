@@ -11,14 +11,17 @@ const projectUrl = new URL('../App.xcodeproj/project.pbxproj', appDirUrl);
 if (!existsSync(plistUrl)) throw new Error('iOS project not found. Run npm run mobile:add:ios first.');
 
 let plist = await readFile(plistUrl, 'utf8');
-const entries = [
-  ['NSLocationWhenInUseUsageDescription', 'Pawstop uses your location to start a trip from where you are.']
-];
-
-for (const [key, value] of entries) {
-  if (plist.includes(`<key>${key}</key>`)) continue;
-  plist = plist.replace('</dict>', `\t<key>${key}</key>\n\t<string>${value}</string>\n</dict>`);
-}
+// Earlier syncs could insert this key into a nested dictionary.
+plist = plist.replace(
+  /^[ \t]*<key>NSLocationWhenInUseUsageDescription<\/key>\s*<string>[^<]*<\/string>[ \t]*\r?\n?/gm,
+  ''
+);
+const rootDict = /(<plist\b[^>]*>\s*<dict>)/;
+if (!rootDict.test(plist)) throw new Error('Expected an XML Info.plist with a root dictionary.');
+plist = plist.replace(
+  rootDict,
+  '$1\n\t<key>NSLocationWhenInUseUsageDescription</key>\n\t<string>Pawstop uses your location to start a trip from where you are.</string>'
+);
 // Remove settings inserted by earlier syncs of the iOS project.
 plist = plist.replace(
   /^[ \t]*<key>(?:NSLocationRequireExplicitServiceSession|CLRequireExplicitServiceSession)<\/key>\s*<(?:true|false)\s*\/>[ \t]*\r?\n?/gm,

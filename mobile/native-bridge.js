@@ -24,21 +24,9 @@ function normalizePosition(position) {
 }
 
 async function pluginPosition() {
-  const status = await Geolocation.checkPermissions();
-  if (status.location === 'denied') throw new Error('LOCATION_DENIED');
-
-  if (status.location !== 'granted') {
-    const requested = await withTimeout(
-      Geolocation.requestPermissions({ permissions: ['location'] }),
-      12000,
-      'LOCATION_PERMISSION_TIMEOUT'
-    );
-
-    if (requested.location === 'denied') throw new Error('LOCATION_DENIED');
-    // iOS can remain in a promptable state after "Ask Next Time Or When I Share".
-    // Do not convert that into a denial; let the position request continue.
-  }
-
+  // Capacitor's iOS getCurrentPosition handles the authorization flow itself.
+  // Calling it directly avoids a separate permission preflight getting stuck in
+  // Apple's "Ask Next Time Or When I Share" state.
   return Geolocation.getCurrentPosition({
     enableHighAccuracy: false,
     timeout: 25000,
@@ -65,8 +53,14 @@ window.PawstopNative = {
       try {
         return normalizePosition(await withTimeout(webviewPosition(), 20000));
       } catch (webError) {
-        if (pluginError?.message === 'LOCATION_DENIED' || webError?.code === 1) throw new Error('LOCATION_DENIED');
-        throw new Error('LOCATION_UNAVAILABLE');
+        const pluginCode = pluginError?.code || pluginError?.message || '';
+        if (pluginCode === 'OS-PLUG-GLOC-0003' || webError?.code === 1) throw new Error('LOCATION_DENIED');
+        if (pluginCode === 'OS-PLUG-GLOC-0007') throw new Error('LOCATION_SERVICES_DISABLED');
+        if (pluginCode === 'OS-PLUG-GLOC-0008') throw new Error('LOCATION_RESTRICTED');
+        if (pluginCode === 'OS-PLUG-GLOC-0010') throw new Error('LOCATION_TIMEOUT');
+        const error = new Error('LOCATION_UNAVAILABLE');
+        error.cause = { pluginCode, webCode: webError?.code || null };
+        throw error;
       }
     }
   },

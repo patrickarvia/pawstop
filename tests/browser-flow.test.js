@@ -465,3 +465,19 @@ test('native iOS location watch clears itself after the first valid fix',()=>{
   assert.match(pluginBlock,/cleanup\(\)/);
   assert.match(pluginBlock,/clearWatch/);
 });
+
+
+test('iOS sync generates and registers direct Apple CoreLocation plugin',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(configure,/PawstopLocationPlugin/);
+  assert.match(configure,/CLLocationManager/);
+  assert.match(configure,/startUpdatingLocation/);
+  assert.match(configure,/locationUnknown/);
+  assert.match(configure,/registerPluginInstance\(PawstopLocationPlugin\(\)\)/);
+  assert.match(configure,/customClass="ViewController" customModule="App"/);
+  assert.match(configure,/PawstopNative\.swift in Sources/);
+  assert.match(bridge,/registerPlugin\('PawstopLocation'\)/);
+  assert.match(bridge,/directCoreLocationPosition/);
+  assert.match(bridge,/PAWSTOP_CORELOCATION_TIMEOUT/);
+});

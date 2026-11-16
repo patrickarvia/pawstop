@@ -1,8 +1,11 @@
+import { registerPlugin } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { Share } from '@capacitor/share';
 
 document.documentElement.classList.add('native-app');
+
+const PawstopLocation = registerPlugin('PawstopLocation');
 
 async function safeHaptic(run) {
   try { await run(); } catch {}
@@ -21,6 +24,10 @@ function normalizePosition(position) {
   const longitude = position?.coords?.longitude;
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('LOCATION_UNAVAILABLE');
   return { latitude, longitude, accuracy: position.coords.accuracy ?? null };
+}
+
+async function directCoreLocationPosition() {
+  return PawstopLocation.getCurrentPosition();
 }
 
 async function pluginPosition() {
@@ -91,26 +98,41 @@ function webviewPosition() {
 
 window.PawstopNative = {
   async getCurrentPosition() {
+    let directError;
+    try {
+      return normalizePosition(await withTimeout(directCoreLocationPosition(), 35000, 'PAWSTOP_CORELOCATION_TIMEOUT'));
+    } catch (error) {
+      directError = error;
+    }
+
     try {
       return normalizePosition(await withTimeout(pluginPosition(), 35000));
     } catch (pluginError) {
       try {
         return normalizePosition(await withTimeout(webviewPosition(), 20000));
       } catch (webError) {
+        const directCode = directError?.code || directError?.message || '';
         const pluginCode = pluginError?.code || pluginError?.message || '';
         const webCode = webError?.code || null;
-        console.warn('Pawstop location diagnostic', { pluginCode, webCode, pluginMessage: pluginError?.message || '', webMessage: webError?.message || '' });
+        console.warn('Pawstop location diagnostic', {
+          directCode,
+          pluginCode,
+          webCode,
+          directMessage: directError?.message || '',
+          pluginMessage: pluginError?.message || '',
+          webMessage: webError?.message || ''
+        });
 
         const makeLocationError = (message) => {
           const error = new Error(message);
-          error.pawstopDiagnostic = { pluginCode, webCode };
+          error.pawstopDiagnostic = { directCode, pluginCode, webCode };
           return error;
         };
 
-        if (pluginCode === 'OS-PLUG-GLOC-0003' || webCode === 1) throw makeLocationError('LOCATION_DENIED');
-        if (pluginCode === 'OS-PLUG-GLOC-0007') throw makeLocationError('LOCATION_SERVICES_DISABLED');
-        if (pluginCode === 'OS-PLUG-GLOC-0008') throw makeLocationError('LOCATION_RESTRICTED');
-        if (pluginCode === 'OS-PLUG-GLOC-0010') throw makeLocationError('LOCATION_TIMEOUT');
+        if (directCode === 'PAWSTOP_LOCATION_DENIED' || pluginCode === 'OS-PLUG-GLOC-0003' || webCode === 1) throw makeLocationError('LOCATION_DENIED');
+        if (directCode === 'PAWSTOP_LOCATION_SERVICES_DISABLED' || pluginCode === 'OS-PLUG-GLOC-0007') throw makeLocationError('LOCATION_SERVICES_DISABLED');
+        if (directCode === 'PAWSTOP_LOCATION_RESTRICTED' || pluginCode === 'OS-PLUG-GLOC-0008') throw makeLocationError('LOCATION_RESTRICTED');
+        if (directCode === 'PAWSTOP_CORELOCATION_TIMEOUT' || pluginCode === 'LOCATION_WATCH_TIMEOUT' || pluginCode === 'OS-PLUG-GLOC-0010') throw makeLocationError('LOCATION_TIMEOUT');
         throw makeLocationError('LOCATION_UNAVAILABLE');
       }
     }

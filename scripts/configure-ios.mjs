@@ -12,38 +12,23 @@ if (!existsSync(plistUrl)) throw new Error('iOS project not found. Run npm run m
 
 let plist = await readFile(plistUrl, 'utf8');
 const entries = [
-  ['NSLocationWhenInUseUsageDescription', 'Pawstop uses your location to start a trip from where you are.'],
-  ['NSLocationAlwaysAndWhenInUseUsageDescription', 'Pawstop uses your location to start a trip from where you are.']
+  ['NSLocationWhenInUseUsageDescription', 'Pawstop uses your location to start a trip from where you are.']
 ];
 
 for (const [key, value] of entries) {
   if (plist.includes(`<key>${key}</key>`)) continue;
   plist = plist.replace('</dict>', `\t<key>${key}</key>\n\t<string>${value}</string>\n</dict>`);
 }
-if (!plist.includes('<key>NSLocationRequireExplicitServiceSession</key>')) {
-  plist = plist.replace(
-    '</dict>',
-    '\t<key>NSLocationRequireExplicitServiceSession</key>\n\t<true/>\n</dict>'
-  );
-}
+// Remove settings inserted by earlier syncs of the iOS project.
+plist = plist.replace(
+  /^[ \t]*<key>(?:NSLocationRequireExplicitServiceSession|CLRequireExplicitServiceSession)<\/key>\s*<(?:true|false)\s*\/>[ \t]*\r?\n?/gm,
+  ''
+);
 await writeFile(plistUrl, plist);
 
 const nativeSwift = `import UIKit
 import CoreLocation
 import Capacitor
-
-@available(iOS 18.0, *)
-private final class PawstopModernLocationSession {
-    let session: CLServiceSession
-
-    init() {
-        session = CLServiceSession(authorization: .whenInUse)
-    }
-
-    func invalidate() {
-        session.invalidate()
-    }
-}
 
 @objc(PawstopLocationPlugin)
 public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
@@ -56,8 +41,7 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
     private var manager: CLLocationManager?
     private var pendingCall: CAPPluginCall?
     private var timeoutWorkItem: DispatchWorkItem?
-    private var liveUpdateTask: Task<Void, Never>?
-    private var modernSession: AnyObject?
+    private var requestedLocation = false
 
     @objc func getCurrentPosition(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
@@ -69,34 +53,22 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
             }
 
             let manager = CLLocationManager()
-            manager.delegate = self
             manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-            manager.distanceFilter = kCLDistanceFilterNone
-
             self.manager = manager
             self.pendingCall = call
 
-            if #available(iOS 18.0, *) {
-                switch manager.authorizationStatus {
-                case .denied:
-                    self.finishPendingRequest(code: "PAWSTOP_LOCATION_DENIED", message: "Location access is denied.")
-                case .restricted:
-                    self.finishPendingRequest(code: "PAWSTOP_LOCATION_RESTRICTED", message: "Location access is restricted.")
-                case .notDetermined, .authorizedWhenInUse, .authorizedAlways:
-                    // On iOS 18+, the explicit CLServiceSession owns the
-                    // authorization request and stays alive for this workflow.
-                    self.startModernLocationUpdates()
-                @unknown default:
-                    self.finishPendingRequest(code: "PAWSTOP_LOCATION_UNAVAILABLE", message: "Location authorization is unavailable.")
-                }
-                return
+            let work = DispatchWorkItem { [weak self] in
+                self?.finishPendingRequest(code: "PAWSTOP_CORELOCATION_TIMEOUT", message: "Core Location did not provide a position in time.")
             }
+            self.timeoutWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 45, execute: work)
+            manager.delegate = self
 
             switch manager.authorizationStatus {
             case .notDetermined:
                 manager.requestWhenInUseAuthorization()
             case .authorizedWhenInUse, .authorizedAlways:
-                self.startLocationUpdates()
+                self.requestLocation(manager)
             case .denied:
                 self.finishPendingRequest(code: "PAWSTOP_LOCATION_DENIED", message: "Location access is denied.")
             case .restricted:
@@ -107,75 +79,10 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
         }
     }
 
-    @available(iOS 18.0, *)
-    private func startModernLocationUpdates() {
-        liveUpdateTask?.cancel()
-        timeoutWorkItem?.cancel()
-
-        let session = PawstopModernLocationSession()
-        modernSession = session
-
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            let code: String
-            switch self.manager?.authorizationStatus {
-            case .notDetermined:
-                code = "PAWSTOP_LIVEUPDATES_TIMEOUT_NOT_DETERMINED"
-            case .denied:
-                code = "PAWSTOP_LOCATION_DENIED"
-            case .restricted:
-                code = "PAWSTOP_LOCATION_RESTRICTED"
-            case .authorizedWhenInUse, .authorizedAlways:
-                code = "PAWSTOP_LIVEUPDATES_TIMEOUT_AUTHORIZED"
-            default:
-                code = "PAWSTOP_LIVEUPDATES_TIMEOUT"
-            }
-            self.finishPendingRequest(code: code, message: "Modern Core Location did not provide a position in time.")
-        }
-        timeoutWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: work)
-
-        liveUpdateTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                let updates = CLLocationUpdate.liveUpdates()
-                for try await update in updates {
-                    if Task.isCancelled { return }
-
-                    if update.authorizationDenied {
-                        self.finishPendingRequest(code: "PAWSTOP_LOCATION_DENIED", message: "Location access is denied.")
-                        return
-                    }
-
-                    if let location = update.location {
-                        self.resolve(location)
-                        return
-                    }
-                }
-            } catch {
-                self.finishPendingRequest(code: "PAWSTOP_LIVEUPDATES_ERROR", message: error.localizedDescription)
-            }
-        }
-    }
-
-    private func startLocationUpdates() {
-        guard let manager else { return }
-
-        if let cached = manager.location,
-           cached.horizontalAccuracy >= 0,
-           abs(cached.timestamp.timeIntervalSinceNow) <= 300 {
-            resolve(cached)
-            return
-        }
-
-        manager.startUpdatingLocation()
-
-        timeoutWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.finishPendingRequest(code: "PAWSTOP_CORELOCATION_TIMEOUT", message: "CoreLocation did not provide a position in time.")
-        }
-        timeoutWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: work)
+    private func requestLocation(_ manager: CLLocationManager) {
+        guard manager === self.manager, !requestedLocation else { return }
+        requestedLocation = true
+        manager.requestLocation()
     }
 
     private func resolve(_ location: CLLocation) {
@@ -204,28 +111,17 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
     private func cleanup() {
         timeoutWorkItem?.cancel()
         timeoutWorkItem = nil
-        liveUpdateTask?.cancel()
-        liveUpdateTask = nil
-        if #available(iOS 18.0, *), let session = modernSession as? PawstopModernLocationSession {
-            session.invalidate()
-        }
-        modernSession = nil
-        manager?.stopUpdatingLocation()
+        requestedLocation = false
         manager?.delegate = nil
         manager = nil
         pendingCall = nil
     }
 
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        guard manager === self.manager else { return }
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
-            if #available(iOS 18.0, *) {
-                if modernSession == nil {
-                    startModernLocationUpdates()
-                }
-            } else {
-                startLocationUpdates()
-            }
+            requestLocation(manager)
         case .denied:
             finishPendingRequest(code: "PAWSTOP_LOCATION_DENIED", message: "Location access is denied.")
         case .restricted:
@@ -238,15 +134,17 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
     }
 
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
+        guard manager === self.manager else { return }
+        guard let location = locations.last, location.horizontalAccuracy >= 0,
+              CLLocationCoordinate2DIsValid(location.coordinate) else {
+            finishPendingRequest(code: "PAWSTOP_CORELOCATION_ERROR", message: "Core Location returned no usable position.")
+            return
+        }
         resolve(location)
     }
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        if let coreError = error as? CLError, coreError.code == .locationUnknown {
-            // Transient: keep listening for the next usable CoreLocation update.
-            return
-        }
+        guard manager === self.manager else { return }
         finishPendingRequest(code: "PAWSTOP_CORELOCATION_ERROR", message: error.localizedDescription)
     }
 }

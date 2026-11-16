@@ -71,7 +71,18 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
             self.pendingCall = call
 
             if #available(iOS 18.0, *) {
-                self.startModernLocationUpdates()
+                switch manager.authorizationStatus {
+                case .notDetermined:
+                    manager.requestWhenInUseAuthorization()
+                case .authorizedWhenInUse, .authorizedAlways:
+                    self.startModernLocationUpdates()
+                case .denied:
+                    self.finishPendingRequest(code: "PAWSTOP_LOCATION_DENIED", message: "Location access is denied.")
+                case .restricted:
+                    self.finishPendingRequest(code: "PAWSTOP_LOCATION_RESTRICTED", message: "Location access is restricted.")
+                @unknown default:
+                    self.finishPendingRequest(code: "PAWSTOP_LOCATION_UNAVAILABLE", message: "Location authorization is unavailable.")
+                }
                 return
             }
 
@@ -202,7 +213,11 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
-            startLocationUpdates()
+            if #available(iOS 18.0, *) {
+                startModernLocationUpdates()
+            } else {
+                startLocationUpdates()
+            }
         case .denied:
             finishPendingRequest(code: "PAWSTOP_LOCATION_DENIED", message: "Location access is denied.")
         case .restricted:

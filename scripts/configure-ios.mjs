@@ -20,6 +20,12 @@ for (const [key, value] of entries) {
   if (plist.includes(`<key>${key}</key>`)) continue;
   plist = plist.replace('</dict>', `\t<key>${key}</key>\n\t<string>${value}</string>\n</dict>`);
 }
+if (!plist.includes('<key>CLRequireExplicitServiceSession</key>')) {
+  plist = plist.replace(
+    '</dict>',
+    '\t<key>CLRequireExplicitServiceSession</key>\n\t<true/>\n</dict>'
+  );
+}
 await writeFile(plistUrl, plist);
 
 const nativeSwift = `import UIKit
@@ -72,14 +78,14 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
 
             if #available(iOS 18.0, *) {
                 switch manager.authorizationStatus {
-                case .notDetermined:
-                    manager.requestWhenInUseAuthorization()
-                case .authorizedWhenInUse, .authorizedAlways:
-                    self.startModernLocationUpdates()
                 case .denied:
                     self.finishPendingRequest(code: "PAWSTOP_LOCATION_DENIED", message: "Location access is denied.")
                 case .restricted:
                     self.finishPendingRequest(code: "PAWSTOP_LOCATION_RESTRICTED", message: "Location access is restricted.")
+                case .notDetermined, .authorizedWhenInUse, .authorizedAlways:
+                    // On iOS 18+, the explicit CLServiceSession owns the
+                    // authorization request and stays alive for this workflow.
+                    self.startModernLocationUpdates()
                 @unknown default:
                     self.finishPendingRequest(code: "PAWSTOP_LOCATION_UNAVAILABLE", message: "Location authorization is unavailable.")
                 }
@@ -214,7 +220,9 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             if #available(iOS 18.0, *) {
-                startModernLocationUpdates()
+                if modernSession == nil {
+                    startModernLocationUpdates()
+                }
             } else {
                 startLocationUpdates()
             }

@@ -494,3 +494,11 @@ test('location beta diagnostic prioritizes direct CoreLocation failure code',()=
   assert.match(app,/pawstopDiagnostic\?\.directCode/);
   assert.match(app,/directCode\|\|pluginCode/);
 });
+
+
+test('iOS SceneDelegate instantiates Pawstop custom bridge controller',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  assert.match(configure,/SceneDelegate\.swift/);
+  assert.match(configure,/window\?\.rootViewController = ViewController\(\)/);
+  assert.match(configure,/window\?\.rootViewController = CAPBridgeViewController\(\)/);
+});

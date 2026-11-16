@@ -100,7 +100,7 @@ window.PawstopNative = {
   async getCurrentPosition() {
     let directError;
     try {
-      return normalizePosition(await withTimeout(directCoreLocationPosition(), 35000, 'PAWSTOP_CORELOCATION_TIMEOUT'));
+      return normalizePosition(await withTimeout(directCoreLocationPosition(), 60000, 'PAWSTOP_NATIVE_BRIDGE_TIMEOUT'));
     } catch (error) {
       directError = error;
     }

@@ -506,7 +506,7 @@ test('iOS SceneDelegate instantiates Pawstop custom bridge controller',()=>{
 
 test('direct iOS location bridge uses modern CLLocationUpdate stream on iOS 18+',()=>{
   const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
-  assert.match(configure,/#available\(iOS 17\.0, \*\)/);
+  assert.match(configure,/#available\(iOS 18\.0, \*\)/);
   assert.match(configure,/CLLocationUpdate\.liveUpdates\(\)/);
   assert.match(configure,/update\.authorizationDenied/);
   assert.match(configure,/update\.location/);

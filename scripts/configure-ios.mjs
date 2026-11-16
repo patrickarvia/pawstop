@@ -57,6 +57,7 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
     private var pendingCall: CAPPluginCall?
     private var timeoutWorkItem: DispatchWorkItem?
     private var liveUpdateTask: Task<Void, Never>?
+    private var sessionDiagnosticsTask: Task<Void, Never>?
     private var modernSession: AnyObject?
 
     @objc func getCurrentPosition(_ call: CAPPluginCall) {
@@ -114,6 +115,21 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
 
         let session = PawstopModernLocationSession()
         modernSession = session
+
+#if DEBUG
+        print("[Pawstop Location] Session started. Authorization status:", manager?.authorizationStatus.rawValue as Any)
+        sessionDiagnosticsTask = Task { @MainActor in
+            do {
+                for try await diagnostic in session.session.diagnostics {
+                    guard !Task.isCancelled else { return }
+                    print("[Pawstop Location] Authorization request in progress:", diagnostic.authorizationRequestInProgress, "Diagnostic:", String(reflecting: diagnostic))
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                print("[Pawstop Location] Diagnostics error:", error)
+            }
+        }
+#endif
 
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
@@ -206,6 +222,8 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
         timeoutWorkItem = nil
         liveUpdateTask?.cancel()
         liveUpdateTask = nil
+        sessionDiagnosticsTask?.cancel()
+        sessionDiagnosticsTask = nil
         if #available(iOS 18.0, *), let session = modernSession as? PawstopModernLocationSession {
             session.invalidate()
         }

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 const appDirUrl = new URL('../ios/App/App/', import.meta.url);
 const plistUrl = new URL('Info.plist', appDirUrl);
 const storyboardUrl = new URL('Base.lproj/Main.storyboard', appDirUrl);
+const sceneDelegateUrl = new URL('SceneDelegate.swift', appDirUrl);
 const nativeSwiftUrl = new URL('PawstopNative.swift', appDirUrl);
 const projectUrl = new URL('../App.xcodeproj/project.pbxproj', appDirUrl);
 
@@ -168,6 +169,13 @@ storyboard = storyboard.replace(
   'customClass="ViewController" customModule="App" customModuleProvider="target" sceneMemberID="viewController"'
 );
 await writeFile(storyboardUrl, storyboard);
+
+let sceneDelegate = await readFile(sceneDelegateUrl, 'utf8');
+sceneDelegate = sceneDelegate.replace(
+  'window?.rootViewController = CAPBridgeViewController()',
+  'window?.rootViewController = ViewController()'
+);
+await writeFile(sceneDelegateUrl, sceneDelegate);
 
 let project = await readFile(projectUrl, 'utf8');
 const fileRefId = 'A11CE0010000000000000001';

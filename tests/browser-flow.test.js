@@ -424,13 +424,20 @@ test('native iOS does not force pan-y or manipulation on interactive controls',(
 });
 
 
-test('native iOS location keeps promptable permission states eligible and allows longer physical-device acquisition',()=>{
+
+
+test('native iOS current position delegates authorization to Capacitor and preserves native error classes',()=>{
   const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
-  assert.match(bridge,/status\.location === 'denied'/);
-  assert.match(bridge,/requested\.location === 'denied'/);
-  assert.doesNotMatch(bridge,/requested\.location !== 'granted'/);
-  assert.match(bridge,/LOCATION_PERMISSION_TIMEOUT/);
-  assert.match(bridge,/timeout: 25000/);
+  const start=bridge.indexOf('async function pluginPosition()');
+  const end=bridge.indexOf('function webviewPosition()');
+  const pluginBlock=bridge.slice(start,end);
+  assert.match(pluginBlock,/Geolocation\.getCurrentPosition/);
+  assert.doesNotMatch(pluginBlock,/checkPermissions/);
+  assert.doesNotMatch(pluginBlock,/requestPermissions/);
+  assert.match(pluginBlock,/timeout: 25000/);
+  assert.match(bridge,/OS-PLUG-GLOC-0003/);
+  assert.match(bridge,/OS-PLUG-GLOC-0007/);
+  assert.match(bridge,/OS-PLUG-GLOC-0008/);
+  assert.match(bridge,/OS-PLUG-GLOC-0010/);
   assert.match(bridge,/withTimeout\(pluginPosition\(\), 30000\)/);
-  assert.match(bridge,/withTimeout\(webviewPosition\(\), 20000\)/);
 });

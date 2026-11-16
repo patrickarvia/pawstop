@@ -383,8 +383,8 @@ test('native location bridge bounds plugin calls and falls back to WKWebView geo
   assert.match(bridge,/function withTimeout/);
   assert.match(bridge,/Geolocation\.getCurrentPosition/);
   assert.match(bridge,/navigator\.geolocation\.getCurrentPosition/);
-  assert.match(bridge,/withTimeout\(pluginPosition\(\), 10000\)/);
-  assert.match(bridge,/withTimeout\(webviewPosition\(\), 10000\)/);
+  assert.match(bridge,/withTimeout\(pluginPosition\(\), 30000\)/);
+  assert.match(bridge,/withTimeout\(webviewPosition\(\), 20000\)/);
 });
 
 
@@ -400,7 +400,7 @@ test('native location feedback is shown beside the location button',()=>{
 test('native location tries WKWebView after plugin permission failures',()=>{
   const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
   assert.match(bridge,/catch \(pluginError\)/);
-  assert.match(bridge,/withTimeout\(webviewPosition\(\), 10000\)/);
+  assert.match(bridge,/withTimeout\(webviewPosition\(\), 20000\)/);
   assert.match(bridge,/throw new Error\('LOCATION_DENIED'\)/);
   assert.match(bridge,/throw new Error\('LOCATION_UNAVAILABLE'\)/);
 });
@@ -421,4 +421,16 @@ test('native iOS does not force pan-y or manipulation on interactive controls',(
   const nativeBlock=css.slice(css.indexOf('html.native-app,html.native-app body'));
   assert.doesNotMatch(nativeBlock,/touch-action:pan-y/);
   assert.match(nativeBlock,/button,html\.native-app input,html\.native-app select\{touch-action:auto!important\}/);
+});
+
+
+test('native iOS location keeps promptable permission states eligible and allows longer physical-device acquisition',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(bridge,/status\.location === 'denied'/);
+  assert.match(bridge,/requested\.location === 'denied'/);
+  assert.doesNotMatch(bridge,/requested\.location !== 'granted'/);
+  assert.match(bridge,/LOCATION_PERMISSION_TIMEOUT/);
+  assert.match(bridge,/timeout: 25000/);
+  assert.match(bridge,/withTimeout\(pluginPosition\(\), 30000\)/);
+  assert.match(bridge,/withTimeout\(webviewPosition\(\), 20000\)/);
 });

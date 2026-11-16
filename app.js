@@ -96,9 +96,16 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
   }catch(error){
     currentOriginCoordinates=null;
     if(locationStatus){
-      locationStatus.textContent=error?.message==="LOCATION_DENIED"
-        ?"Location access is off for Pawstop. Enable it in iOS Settings or enter a city manually."
-        :"Location wasn’t available. You can try again or enter a city manually.";
+      const pluginCode=error?.pawstopDiagnostic?.pluginCode||"";
+      const webCode=error?.pawstopDiagnostic?.webCode??"";
+      const diagnostic=pluginCode||webCode!==""?` Diagnostic: ${pluginCode||`WEB-${webCode}`}.`:"";
+      const messages={
+        LOCATION_DENIED:"Location access is off for Pawstop. Enable it in iOS Settings or enter a city manually.",
+        LOCATION_SERVICES_DISABLED:"Location Services are turned off on this iPhone.",
+        LOCATION_RESTRICTED:"Location access is restricted on this iPhone.",
+        LOCATION_TIMEOUT:"Pawstop couldn’t get a location in time."
+      };
+      locationStatus.textContent=(messages[error?.message]||"Location wasn’t available. You can try again or enter a city manually.")+diagnostic;
       locationStatus.classList.add("warning");
     }
     bridge.error?.();

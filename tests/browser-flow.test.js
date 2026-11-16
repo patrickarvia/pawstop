@@ -481,3 +481,16 @@ test('iOS sync generates and registers direct Apple CoreLocation plugin',()=>{
   assert.match(bridge,/directCoreLocationPosition/);
   assert.match(bridge,/PAWSTOP_CORELOCATION_TIMEOUT/);
 });
+
+
+test('custom iOS bridge inherits the app target module so local plugin registration runs',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  assert.match(configure,/customModuleProvider="target"/);
+  assert.match(configure,/registerPluginInstance\(PawstopLocationPlugin\(\)\)/);
+});
+
+test('location beta diagnostic prioritizes direct CoreLocation failure code',()=>{
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(app,/pawstopDiagnostic\?\.directCode/);
+  assert.match(app,/directCode\|\|pluginCode/);
+});

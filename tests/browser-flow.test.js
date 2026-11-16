@@ -536,3 +536,12 @@ test('iOS 18 current-location flow holds an explicit when-in-use service session
   assert.match(configure,/PAWSTOP_LIVEUPDATES_TIMEOUT_AUTHORIZED/);
   assert.match(bridge,/directCode\.startsWith\('PAWSTOP_LIVEUPDATES_TIMEOUT'\)/);
 });
+
+
+test('iOS 18 location flow explicitly requests when-in-use authorization before live updates',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  assert.match(configure,/if #available\(iOS 18\.0, \*\) \{[\s\S]*case \.notDetermined:[\s\S]*manager\.requestWhenInUseAuthorization\(\)/);
+  assert.match(configure,/case \.authorizedWhenInUse, \.authorizedAlways:[\s\S]*self\.startModernLocationUpdates\(\)/);
+  assert.match(configure,/locationManagerDidChangeAuthorization[\s\S]*if #available\(iOS 18\.0, \*\) \{[\s\S]*startModernLocationUpdates\(\)/);
+  assert.match(configure,/NSLocationWhenInUseUsageDescription/);
+});

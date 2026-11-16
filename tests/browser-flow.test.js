@@ -378,12 +378,13 @@ test('mobile build injects a bundled native bridge with location share and hapti
 });
 
 
-test('native location bridge bounds plugin calls and falls back to WKWebView geolocation',()=>{
+test('native location bridge uses a bounded short-lived watch and falls back to WKWebView geolocation',()=>{
   const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
   assert.match(bridge,/function withTimeout/);
-  assert.match(bridge,/Geolocation\.getCurrentPosition/);
+  assert.match(bridge,/Geolocation\.watchPosition/);
+  assert.match(bridge,/Geolocation\.clearWatch/);
   assert.match(bridge,/navigator\.geolocation\.getCurrentPosition/);
-  assert.match(bridge,/withTimeout\(pluginPosition\(\), 30000\)/);
+  assert.match(bridge,/withTimeout\(pluginPosition\(\), 35000\)/);
   assert.match(bridge,/withTimeout\(webviewPosition\(\), 20000\)/);
 });
 
@@ -426,20 +427,20 @@ test('native iOS does not force pan-y or manipulation on interactive controls',(
 
 
 
-test('native iOS current position delegates authorization to Capacitor and preserves native error classes',()=>{
+test('native iOS current position uses a recoverable watch and ignores transient location events',()=>{
   const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
   const start=bridge.indexOf('async function pluginPosition()');
   const end=bridge.indexOf('function webviewPosition()');
   const pluginBlock=bridge.slice(start,end);
-  assert.match(pluginBlock,/Geolocation\.getCurrentPosition/);
+  assert.match(pluginBlock,/Geolocation\.watchPosition/);
+  assert.match(pluginBlock,/Geolocation\.clearWatch/);
   assert.doesNotMatch(pluginBlock,/checkPermissions/);
   assert.doesNotMatch(pluginBlock,/requestPermissions/);
-  assert.match(pluginBlock,/timeout: 25000/);
-  assert.match(bridge,/OS-PLUG-GLOC-0003/);
-  assert.match(bridge,/OS-PLUG-GLOC-0007/);
-  assert.match(bridge,/OS-PLUG-GLOC-0008/);
-  assert.match(bridge,/OS-PLUG-GLOC-0010/);
-  assert.match(bridge,/withTimeout\(pluginPosition\(\), 30000\)/);
+  assert.match(pluginBlock,/maximumAge: 300000/);
+  assert.match(pluginBlock,/OS-PLUG-GLOC-0002/);
+  assert.match(pluginBlock,/OS-PLUG-GLOC-0010/);
+  assert.match(pluginBlock,/LOCATION_WATCH_TIMEOUT/);
+  assert.match(bridge,/withTimeout\(pluginPosition\(\), 35000\)/);
 });
 
 
@@ -452,4 +453,15 @@ test('native beta location failures surface the exact plugin diagnostic code',()
   assert.match(app,/LOCATION_SERVICES_DISABLED/);
   assert.match(app,/LOCATION_RESTRICTED/);
   assert.match(app,/LOCATION_TIMEOUT/);
+});
+
+
+test('native iOS location watch clears itself after the first valid fix',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  const start=bridge.indexOf('async function pluginPosition()');
+  const end=bridge.indexOf('function webviewPosition()');
+  const pluginBlock=bridge.slice(start,end);
+  assert.match(pluginBlock,/if \(position\) \{[\s\S]*finish\(resolve, position\)/);
+  assert.match(pluginBlock,/cleanup\(\)/);
+  assert.match(pluginBlock,/clearWatch/);
 });

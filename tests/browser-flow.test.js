@@ -504,71 +504,14 @@ test('iOS SceneDelegate instantiates Pawstop custom bridge controller',()=>{
 });
 
 
-test('direct iOS location bridge uses modern CLLocationUpdate stream on iOS 18+',()=>{
-  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
-  assert.match(configure,/#available\(iOS 18\.0, \*\)/);
-  assert.match(configure,/CLLocationUpdate\.liveUpdates\(\)/);
-  assert.match(configure,/update\.authorizationDenied/);
-  assert.match(configure,/update\.location/);
-  assert.match(configure,/PAWSTOP_LIVEUPDATES_TIMEOUT/);
-  assert.match(configure,/liveUpdateTask\?\.cancel\(\)/);
-  assert.match(configure,/startLocationUpdates\(\)/);
-});
-
-
-test('modern Core Location authorization diagnostics are gated to iOS 18+',()=>{
-  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
-  assert.match(configure,/#available\(iOS 18\.0, \*\)/);
-  assert.match(configure,/@available\(iOS 18\.0, \*\)/);
-  assert.doesNotMatch(configure,/#available\(iOS 17\.0, \*\)/);
-  assert.doesNotMatch(configure,/@available\(iOS 17\.0, \*\)/);
-});
-
-
-test('iOS 18 current-location flow holds an explicit when-in-use service session',()=>{
+test('direct iOS location bridge requests foreground permission and one location',()=>{
   const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
   const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
-  assert.match(configure,/CLServiceSession\(authorization: \.whenInUse\)/);
-  assert.match(configure,/PawstopModernLocationSession/);
-  assert.match(configure,/modernSession = session/);
-  assert.match(configure,/session\.invalidate\(\)/);
-  assert.match(configure,/PAWSTOP_LIVEUPDATES_TIMEOUT_NOT_DETERMINED/);
-  assert.match(configure,/PAWSTOP_LIVEUPDATES_TIMEOUT_AUTHORIZED/);
-  assert.match(bridge,/directCode\.startsWith\('PAWSTOP_LIVEUPDATES_TIMEOUT'\)/);
-});
 
-
-test('iOS 18 location flow delegates authorization to the explicit service session',()=>{
-  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
-  assert.match(configure,/if #available\(iOS 18\.0, \*\) \{[\s\S]*case \.notDetermined, \.authorizedWhenInUse, \.authorizedAlways:[\s\S]*self\.startModernLocationUpdates\(\)/);
-  assert.match(configure,/NSLocationRequireExplicitServiceSession/);
-  assert.match(configure,/CLServiceSession\(authorization: \.whenInUse\)/);
   assert.match(configure,/NSLocationWhenInUseUsageDescription/);
-});
-
-
-test('iOS 18 explicit service session owns the authorization prompt',()=>{
-  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
-  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
-
-  assert.match(configure,/NSLocationRequireExplicitServiceSession/);
-  assert.match(configure,/<true\/>/);
-  assert.match(configure,/case \.notDetermined, \.authorizedWhenInUse, \.authorizedAlways:[\s\S]*startModernLocationUpdates\(\)/);
-  assert.match(configure,/CLServiceSession\(authorization: \.whenInUse\)/);
-
-  const modernGate=configure.slice(
-    configure.indexOf('if #available(iOS 18.0, *) {'),
-    configure.indexOf('switch manager.authorizationStatus {', configure.indexOf('if #available(iOS 18.0, *) {') + 1)
-  );
-  assert.doesNotMatch(modernGate,/requestWhenInUseAuthorization/);
-
-  assert.match(configure,/if modernSession == nil/);
+  assert.match(configure,/case \.notDetermined:\s+manager\.requestWhenInUseAuthorization\(\)/);
+  assert.match(configure,/guard manager === self\.manager, !requestedLocation else \{ return \}\s+requestedLocation = true\s+manager\.requestLocation\(\)/);
+  assert.match(configure,/locationManagerDidChangeAuthorization[\s\S]*case \.authorizedWhenInUse, \.authorizedAlways:\s+requestLocation\(manager\)/);
+  assert.doesNotMatch(configure,/CLLocationUpdate\.liveUpdates|CLServiceSession\(/);
   assert.match(bridge,/withTimeout\(directCoreLocationPosition\(\), 60000, 'PAWSTOP_NATIVE_BRIDGE_TIMEOUT'\)/);
-});
-
-
-test('iOS explicit service-session plist uses Apple NSLocation key',()=>{
-  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
-  assert.match(configure,/NSLocationRequireExplicitServiceSession/);
-  assert.doesNotMatch(configure,/['"]CLRequireExplicitServiceSession['"]/);
 });

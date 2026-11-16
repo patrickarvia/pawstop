@@ -504,13 +504,22 @@ test('iOS SceneDelegate instantiates Pawstop custom bridge controller',()=>{
 });
 
 
-test('direct iOS location bridge uses modern CLLocationUpdate stream on iOS 17+',()=>{
+test('direct iOS location bridge uses modern CLLocationUpdate stream on iOS 18+',()=>{
   const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
-  assert.match(configure,/#available\(iOS 17\.0, \*\)/);
+  assert.match(configure,/#available\(iOS 18\.0, \*\)/);
   assert.match(configure,/CLLocationUpdate\.liveUpdates\(\)/);
   assert.match(configure,/update\.authorizationDenied/);
   assert.match(configure,/update\.location/);
   assert.match(configure,/PAWSTOP_LIVEUPDATES_TIMEOUT/);
   assert.match(configure,/liveUpdateTask\?\.cancel\(\)/);
   assert.match(configure,/startLocationUpdates\(\)/);
+});
+
+
+test('modern Core Location authorization diagnostics are gated to iOS 18+',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  assert.match(configure,/#available\(iOS 18\.0, \*\)/);
+  assert.match(configure,/@available\(iOS 18\.0, \*\)/);
+  assert.doesNotMatch(configure,/#available\(iOS 17\.0, \*\)/);
+  assert.doesNotMatch(configure,/@available\(iOS 17\.0, \*\)/);
 });

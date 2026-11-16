@@ -56,7 +56,7 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
             self.manager = manager
             self.pendingCall = call
 
-            if #available(iOS 17.0, *) {
+            if #available(iOS 18.0, *) {
                 self.startModernLocationUpdates()
                 return
             }
@@ -76,7 +76,7 @@ public class PawstopLocationPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManag
         }
     }
 
-    @available(iOS 17.0, *)
+    @available(iOS 18.0, *)
     private func startModernLocationUpdates() {
         liveUpdateTask?.cancel()
         timeoutWorkItem?.cancel()

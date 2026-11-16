@@ -25,13 +25,23 @@ function normalizePosition(position) {
 
 async function pluginPosition() {
   const status = await Geolocation.checkPermissions();
+  if (status.location === 'denied') throw new Error('LOCATION_DENIED');
+
   if (status.location !== 'granted') {
-    const requested = await Geolocation.requestPermissions({ permissions: ['location'] });
-    if (requested.location !== 'granted') throw new Error('LOCATION_DENIED');
+    const requested = await withTimeout(
+      Geolocation.requestPermissions({ permissions: ['location'] }),
+      12000,
+      'LOCATION_PERMISSION_TIMEOUT'
+    );
+
+    if (requested.location === 'denied') throw new Error('LOCATION_DENIED');
+    // iOS can remain in a promptable state after "Ask Next Time Or When I Share".
+    // Do not convert that into a denial; let the position request continue.
   }
+
   return Geolocation.getCurrentPosition({
     enableHighAccuracy: false,
-    timeout: 8000,
+    timeout: 25000,
     maximumAge: 60000
   });
 }
@@ -50,10 +60,10 @@ function webviewPosition() {
 window.PawstopNative = {
   async getCurrentPosition() {
     try {
-      return normalizePosition(await withTimeout(pluginPosition(), 10000));
+      return normalizePosition(await withTimeout(pluginPosition(), 30000));
     } catch (pluginError) {
       try {
-        return normalizePosition(await withTimeout(webviewPosition(), 10000));
+        return normalizePosition(await withTimeout(webviewPosition(), 20000));
       } catch (webError) {
         if (pluginError?.message === 'LOCATION_DENIED' || webError?.code === 1) throw new Error('LOCATION_DENIED');
         throw new Error('LOCATION_UNAVAILABLE');

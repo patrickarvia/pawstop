@@ -401,8 +401,8 @@ test('native location tries WKWebView after plugin permission failures',()=>{
   const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
   assert.match(bridge,/catch \(pluginError\)/);
   assert.match(bridge,/withTimeout\(webviewPosition\(\), 20000\)/);
-  assert.match(bridge,/throw new Error\('LOCATION_DENIED'\)/);
-  assert.match(bridge,/throw new Error\('LOCATION_UNAVAILABLE'\)/);
+  assert.match(bridge,/makeLocationError\('LOCATION_DENIED'\)/);
+  assert.match(bridge,/makeLocationError\('LOCATION_UNAVAILABLE'\)/);
 });
 
 

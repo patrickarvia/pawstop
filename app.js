@@ -96,9 +96,11 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
   }catch(error){
     currentOriginCoordinates=null;
     if(locationStatus){
+      const directCode=error?.pawstopDiagnostic?.directCode||"";
       const pluginCode=error?.pawstopDiagnostic?.pluginCode||"";
       const webCode=error?.pawstopDiagnostic?.webCode??"";
-      const diagnostic=pluginCode||webCode!==""?` Diagnostic: ${pluginCode||`WEB-${webCode}`}.`:"";
+      const diagnosticCode=directCode||pluginCode||(webCode!==""?`WEB-${webCode}`:"");
+      const diagnostic=diagnosticCode?` Diagnostic: ${diagnosticCode}.`:"";
       const messages={
         LOCATION_DENIED:"Location access is off for Pawstop. Enable it in iOS Settings or enter a city manually.",
         LOCATION_SERVICES_DISABLED:"Location Services are turned off on this iPhone.",

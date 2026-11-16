@@ -132,7 +132,7 @@ window.PawstopNative = {
         if (directCode === 'PAWSTOP_LOCATION_DENIED' || pluginCode === 'OS-PLUG-GLOC-0003' || webCode === 1) throw makeLocationError('LOCATION_DENIED');
         if (directCode === 'PAWSTOP_LOCATION_SERVICES_DISABLED' || pluginCode === 'OS-PLUG-GLOC-0007') throw makeLocationError('LOCATION_SERVICES_DISABLED');
         if (directCode === 'PAWSTOP_LOCATION_RESTRICTED' || pluginCode === 'OS-PLUG-GLOC-0008') throw makeLocationError('LOCATION_RESTRICTED');
-        if (directCode === 'PAWSTOP_CORELOCATION_TIMEOUT' || pluginCode === 'LOCATION_WATCH_TIMEOUT' || pluginCode === 'OS-PLUG-GLOC-0010') throw makeLocationError('LOCATION_TIMEOUT');
+        if (directCode === 'PAWSTOP_CORELOCATION_TIMEOUT' || directCode.startsWith('PAWSTOP_LIVEUPDATES_TIMEOUT') || pluginCode === 'LOCATION_WATCH_TIMEOUT' || pluginCode === 'OS-PLUG-GLOC-0010') throw makeLocationError('LOCATION_TIMEOUT');
         throw makeLocationError('LOCATION_UNAVAILABLE');
       }
     }

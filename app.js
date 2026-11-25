@@ -123,7 +123,11 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
       }
       fetch(apiUrl('/api/location-address'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentOriginCoordinates),signal:AbortSignal.timeout(6000)})
         .then(response=>response.ok?response.json():null)
-        .then(result=>{if(revision===locationRevision&&result?.address) address.textContent=`Near ${result.address}`})
+        .then(result=>{
+          if(revision!==locationRevision||!result?.address) return;
+          address.textContent=`Near ${result.address}`;
+          address.insertAdjacentHTML('beforeend','<span class="maps-credit" translate="no">Google Maps</span>');
+        })
         .catch(()=>{});
     }
     $("planStatus").textContent="Using your current location as the trip start.";
@@ -264,6 +268,7 @@ function renderRecommendation({targetMinutes,stop},index){
   return `<article class="stop recommended real-stop">${label}
     <div class="stop-head"><h3>${escapeHtml(displayStopName(stop))}</h3><span class="match">${Math.round(stop.pawstop.matchScore)} MATCH</span></div>
     ${displayAddress(stop.address)?`<p class="place">${escapeHtml(displayAddress(stop.address))}</p>`:""}
+    <span class="maps-attribution stop-maps-attribution" role="img" aria-label="Google Maps"></span>
     <div class="recommendation-summary">${typeof stop.primaryType==="string"&&stop.primaryType.trim()?`<span class="type-badge">${escapeHtml(readableType(stop.primaryType))}</span>`:""}${evidenceLabel?`<span class="evidence-badge">${evidenceLabel}</span>`:""}</div>
     <div class="recommendation-timing"><span>${formatMinutes(stop.route.tripMinutes)} into trip · ${detour?`+${detour} min detour`:"No meaningful route detour"}</span><span>${escapeHtml(stop.route.timingLabel)}</span></div>
     ${tags.length?`<div class="tags">${tags.map(tag=>`<span>${escapeHtml(tag)}</span>`).join("")}</div>`:""}
@@ -445,8 +450,9 @@ for (const id of ['from', 'to']) {
   input.setAttribute('aria-controls', list.id);
   container.append(list);
   const attribution = document.createElement('img');
-  attribution.src = 'https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png';
-  attribution.alt = 'Powered by Google';
+  attribution.className = 'maps-attribution';
+  attribution.src = 'google-maps-attribution.svg';
+  attribution.alt = 'Google Maps';
   container.append(attribution);
   let timer, controller, revision = 0, active = -1;
   function close() {

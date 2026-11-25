@@ -64,10 +64,18 @@
 
     <div class="card form-card">
       <div class="section-label">TRIP</div>
-      <label>From<input id="from" value="Jersey City, NJ"></label>
+      <label class="location-label" for="from">From</label>
+      <div class="location-field">
+        <input id="from" value="Jersey City, NJ">
+        <button id="clear-from" class="clear-location" type="button" aria-label="Clear starting location" hidden>×</button>
+      </div>
       <button id="useLocation" class="native-only native-action" type="button">Use my current location</button>
       <p id="locationStatus" class="native-only location-status" role="status" aria-live="polite"></p>
-      <label>To<input id="to" value="Chicago, IL"></label>
+      <label class="location-label" for="to">To</label>
+      <div class="location-field">
+        <input id="to" value="Chicago, IL">
+        <button id="clear-to" class="clear-location" type="button" aria-label="Clear destination" hidden>×</button>
+      </div>
 
       <div class="section-label">DOG PROFILE</div>
       <div class="two">

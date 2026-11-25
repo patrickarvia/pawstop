@@ -142,7 +142,9 @@ html.native-app main{min-height:100vh;height:auto;overflow:visible}
 .location-suggestions[hidden] { display: none; }
 .location-suggestions button { display: block; width: 100%; margin: 0; padding: 12px 14px; border: 0; border-bottom: 1px solid #e8e3d9; border-radius: 0; background: transparent; color: #173c32; text-align: left; font: inherit; font-size: 16px; cursor: pointer; }
 .location-suggestions button:hover, .location-suggestions button[aria-selected="true"] { background: #eaf1eb; }
-.location-suggestions img { display: block; width: 120px; height: auto; margin: 10px 14px; }
+.maps-attribution { display: block; width: auto; height: 18px; margin: 10px 10px 5px; }
+.stop-maps-attribution { width: 110px; background: url("google-maps-attribution.svg") left center / auto 100% no-repeat; }
+.maps-credit { display: inline-block; margin-inline-start: 10px; color: #5e5e5e; font: 400 12px Roboto, sans-serif; letter-spacing: normal; white-space: nowrap; }
 .change-location { padding: 8px 0; border: 0; background: transparent; color: #285749; text-decoration: underline; font: inherit; cursor: pointer; }
 .legal-page { max-width: 760px; margin: 40px auto; padding: 24px; }
 .legal-page h1 { font-size: 48px; }

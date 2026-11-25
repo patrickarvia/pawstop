@@ -36,110 +36,485 @@ input:focus,select:focus{outline:2px solid var(--forest);outline-offset:2px;bord
 .chip.active::before{content:"✓";margin-right:5px}
 .check{display:flex;align-items:flex-start;gap:10px;line-height:1.6;font-weight:500;min-height:44px}
 .check input{width:18px;min-height:18px;height:18px;flex-shrink:0;margin:2px 0;accent-color:var(--pine)}
-.primary{border:0;border-radius:12px;background:var(--pine);color:var(--paper);padding:16px 18px;min-height:52px;font-size:14px;font-weight:600;width:100%;cursor:pointer;line-height:1.5}
-.primary:hover{background:var(--forest)}
-.primary:disabled{opacity:.65;cursor:wait}
-.fine{text-align:center;color:var(--muted);font-size:11px;line-height:1.65;margin:20px 12px}
-.hidden{display:none!important}
-.topbar{justify-content:flex-start}
-.back{border:1px solid var(--line);background:var(--soft-sage);width:44px;height:44px;flex-shrink:0;border-radius:50%;font-size:20px;color:var(--pine);cursor:pointer}
-.muted{color:var(--clay)}
-.trip-summary{display:grid;grid-template-columns:1fr 1.1fr .85fr;gap:0;margin:22px 0 26px;background:var(--soft-sage);border:1px solid var(--sage);border-radius:14px;padding:16px 0}
-.trip-summary div{min-width:0;padding:0 14px}
-.trip-summary div+div{border-left:1px solid #C7D5CA}
-.trip-summary span{display:block;font-size:9px;letter-spacing:.09em;color:var(--muted);font-weight:500;margin-bottom:8px}
-.trip-summary strong{font-size:12px;font-weight:600;line-height:1.5;display:block;overflow-wrap:anywhere}
-.route-line{height:24px;display:flex;align-items:center;margin:0 16px 12px}
-.route-line div{height:1px;background:#AABBAF;flex:1}
-.route-dot{width:8px;height:8px;border-radius:50%;background:var(--pine);box-shadow:0 0 0 4px var(--cream)}
-.route-dot.end{background:var(--clay)}
-.stop{position:relative;background:var(--paper);border:1px solid var(--line);border-left:2px solid var(--sage);border-radius:4px 16px 16px 4px;padding:22px;margin:0 0 14px}
-.stop.recommended{border-left-color:var(--clay)}
-.rec-label{font-size:10px;letter-spacing:.09em;color:var(--forest);font-weight:600;margin-bottom:14px;line-height:1.5}
-.stop-head{display:flex;justify-content:space-between;gap:10px}
-.stop h3{font-size:16px;font-weight:600;line-height:1.4;margin:0 0 6px}
-.place{color:var(--muted);font-size:13px;margin:0;line-height:1.5}
-.match,.badge{white-space:nowrap;background:var(--sage);color:var(--forest);border-radius:5px;padding:6px 8px;font-size:10px;font-weight:600;letter-spacing:.04em}
-.meta{font-size:12px;line-height:1.65;color:var(--muted);margin:12px 0}
-.stop .meta{margin-bottom:0}
-#planStatus:not(:empty){padding:12px;border-left:2px solid var(--clay);background:var(--soft-sage)}
-.tags,.features{display:flex;gap:8px;flex-wrap:wrap}
-.tags span,.features span{font-size:11px;line-height:1.5;background:var(--soft-sage);color:var(--forest);border-radius:5px;padding:8px 9px}
-.stop-actions{display:flex;gap:8px;margin-top:14px}
-.stop-actions button{color:var(--forest);border-color:transparent;padding-left:0;text-decoration:underline;text-underline-offset:4px}
-.data-note{margin-top:12px;padding:14px;background:var(--cream);border-radius:9px;font-size:11px;line-height:1.6;color:var(--muted)}
-.time-pills{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:22px 0}
-.time-pill{padding:11px 5px;background:var(--paper)}
-.urgent-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
-.type-badge{font-size:9px;letter-spacing:.06em;color:var(--muted);font-weight:500;background:var(--cream);border-radius:5px;padding:6px 8px}
-#urgentName{font-size:32px;margin-bottom:8px}
-.bigtime{font-family:Georgia,"Times New Roman",serif;color:var(--pine);font-size:64px;letter-spacing:-.04em;line-height:1.1;margin:26px 0 8px}
-.bigtime small{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;font-size:14px;letter-spacing:0;color:var(--muted)}
-.detour{font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 18px}
-.features{margin:22px 0}
-.why{background:var(--soft-sage);border-left:2px solid var(--forest);border-radius:0 10px 10px 0;padding:18px;margin:22px 0}
-.why strong{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--pine)}
-.why p{font-size:13px;line-height:1.7;color:var(--forest);margin:10px 0 0}
-.community{border-top:1px solid var(--line);margin-top:24px;padding-top:2px}
-.community .section-label{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:9px;letter-spacing:.09em;margin:18px 0 14px}
-.community-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;background:var(--cream);border-radius:10px;padding:14px 0}
-.report{padding:0 10px;min-width:0}
-.report+.report{border-left:1px solid var(--line)}
-.report span{display:block;font-size:9px;color:var(--muted);margin-bottom:7px;line-height:1.5}
-.report strong{font-size:12px;font-weight:600;overflow-wrap:anywhere}
-.verified{font-size:10px;line-height:1.6;color:var(--muted);margin:12px 0 0}
-.confidence{border-top:1px solid var(--line);padding-top:18px;margin:22px 0;font-size:12px;line-height:1.75;color:var(--muted)}
-.confidence strong{color:var(--forest);font-weight:600}
-.source-link{color:var(--forest);text-decoration:underline;text-underline-offset:3px;display:inline-block;padding:5px 0}
-.alternatives{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}
-.alternatives strong{width:100%;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:4px}
-.alternatives button{background:var(--paper)}
-.alternatives button[aria-pressed="true"]{background:var(--sage);border-color:var(--forest);color:var(--pine);font-weight:600}
-.route-logic{font-size:12px;line-height:1.7;color:var(--forest);background:var(--soft-sage);padding:16px;border-radius:10px;margin:12px 0 20px}
-.urgent-status{font-size:12px;line-height:1.65;color:var(--forest);background:var(--soft-sage);padding:12px 14px;border-radius:9px}
-.urgent-status.warning{color:#80473C;background:#F5E9E3;border:1px solid #D7B6AA;border-left:3px solid var(--danger)}
-@media(max-width:410px){main{padding-top:24px}.brand{font-size:12px}.version{font-size:8px}h1{font-size:46px}h2{font-size:30px}.card,.hero-card{padding:20px}.two{grid-template-columns:1fr}.trip-summary div{padding:0 10px}.trip-summary strong{font-size:11px}.trip-summary span{font-size:8px}.time-pill{font-size:11px}.stop-head{flex-wrap:wrap}.match{align-self:flex-start}#urgentName{font-size:29px}}
-@media(max-width:340px){main{padding-left:14px;padding-right:14px}.trip-summary{grid-template-columns:1fr;padding:0 14px}.trip-summary div{padding:12px 0}.trip-summary div+div{border-left:0;border-top:1px solid #C7D5CA}.community-grid{grid-template-columns:1fr;padding:0 12px}.report{padding:12px 0}.report+.report{border-left:0;border-top:1px solid var(--line)}.time-pill{font-size:10px}}
+.primary{bord…6915 tokens truncated…>({ok:true,json:async()=>({route:{durationMinutes:20,distanceMeters:20000},breakTargetsMinutes:[],recommendations:[]})}));await b.element('planBtn').onclick();assert.match(b.element('stops').innerHTML,/No planned breaks/);
+  for(const fetch of [async()=>{throw Error('private detail')},async()=>({ok:false,json:async()=>({error:{code:'INVALID_INPUT',message:'private detail'}})}),async()=>({ok:true,json:async()=>null})]){
+    const b=browser(fetch);await b.element('planBtn').onclick();assert.equal(b.element('planBtn').disabled,false);assert.equal(b.element('planner').classList.contains('hidden'),false);assert.ok(b.element('planError').textContent);assert.doesNotMatch(b.element('planError').textContent,/private detail/);
+  }
+});
 
-/* Real itinerary recommendations retain the premium paper and pine hierarchy. */
-.real-stop{overflow-wrap:anywhere}
-.recommendation-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-.real-stop h3{font-family:Georgia,"Times New Roman",serif;font-size:25px;font-weight:400;color:var(--pine);letter-spacing:-.025em}
-.recommendation-timing{display:flex;flex-wrap:wrap;gap:6px 16px;margin:18px 0;font-size:12px;line-height:1.65;color:var(--forest)}
-.recommendation-timing span:last-child{flex-basis:100%;color:var(--muted)}
-.real-stop .why{padding:16px;margin:20px 0 14px}
-.real-stop .why ul{padding-left:17px;margin:10px 0 0;font-size:12px;line-height:1.7;color:var(--forest)}
-.real-stop .why li+li{margin-top:6px}
-.dog-access,.navigation-unavailable{font-size:11px;line-height:1.65;color:var(--muted)}
-.recommendation-nav{display:inline-block;padding:12px 18px;border-radius:9px;background:var(--pine);color:var(--paper);font-size:12px;font-weight:600;text-decoration:none;min-height:44px}
-.recommendation-nav:hover{background:var(--forest)}
-.coverage-gap{border-left-color:var(--line)}
+test('independent planner demo reads current form without a request and returns to planner',()=>{
+  let requests=0;
+  const b=browser(async()=>{requests++;throw Error('No provider available')});
+  b.element('dog').value='  Luna  ';b.element('age').value='Senior';
+  b.element('detour').value='5';b.element('avoidRelief').checked=false;
+  b.chips.forEach(chip=>chip.classList.toggle('active',chip.dataset.pref==='fenced'));
+  b.element('plannerDemo').onclick();
+  assert.equal(requests,0);assert.equal(b.element('planner').classList.contains('hidden'),true);
+  assert.equal(b.element('urgent').classList.contains('hidden'),false);
+  assert.equal(b.element('route').classList.contains('hidden'),true);
+  assert.equal(b.element('urgentTitle').textContent,'Demo stop for Luna');
+  assert.deepEqual(JSON.parse(b.read('JSON.stringify({dogName,lifeStage,maxDetour,avoidRelief,preferences})')),
+    {dogName:'Luna',lifeStage:'Senior',maxDetour:5,avoidRelief:false,preferences:{grass:false,traffic:false,restrooms:false,detour:false,fenced:true,lighting:false}});
+  b.element('urgentBack').onclick();
+  assert.equal(b.element('planner').classList.contains('hidden'),false);
+  assert.equal(b.element('urgent').classList.contains('hidden'),true);
+  assert.equal(b.element('route').classList.contains('hidden'),true);
+  assert.equal(requests,0);
+});
+test('planner demo remains accessible after route failure without retrying the provider',async()=>{
+  let requests=0;const b=browser(async()=>{requests++;throw Error('Provider unavailable')});
+  await b.element('planBtn').onclick();b.element('plannerDemo').onclick();
+  assert.equal(requests,1);assert.equal(b.element('urgent').classList.contains('hidden'),false);
+  b.element('urgentBack').onclick();assert.equal(b.element('planner').classList.contains('hidden'),false);
+});
 
-.evidence-badge{font-size:9px;line-height:1.5;letter-spacing:.06em;color:var(--muted);font-weight:500}
+test('NO_STOP_CANDIDATES uses the friendly allowlisted message and allows retry', async () => {
+  const b = browser(async () => ({ ok: false, json: async () => ({ error: { code: 'NO_STOP_CANDIDATES', message: 'private provider text' } }) }));
+  await b.element('planBtn').onclick();
+  assert.equal(b.element('planError').textContent, "We couldn't find a suitable Pawstop along this route.");
+  assert.equal(b.element('planBtn').disabled, false);
+});
 
-/* Real route cards keep long place names and addresses within mobile widths. */
-.real-stop .rec-label{color:var(--clay-ink)}
-.real-stop .stop-head{flex-wrap:nowrap;align-items:flex-start}
-.real-stop .stop-head h3{min-width:0;flex:1}
-.real-stop .match{flex-shrink:0}
-.real-stop .recommendation-summary{margin:10px 0 0}
-.real-stop .dog-access{background:var(--soft-sage);border-left:2px solid var(--amber);border-radius:0 6px 6px 0;padding:10px 12px;color:var(--forest)}
-.real-stop .recommendation-nav{max-width:100%;line-height:1.6;text-align:center}
-.coverage-gap{overflow-wrap:anywhere}
+function normalizedStop(overrides={}){
+  return {id:'real-1',name:'Riverside Meadow',primaryType:'recreation_area',address:'12 River Road',
+    route:{tripMinutes:144.4,detourMinutes:6.2,targetMinutes:150,deltaMinutes:-5.6,timingLabel:'Close to planned break'},
+    pawstop:{matchScore:82,plannedFitScore:79.5,why:['Reported restrooms available.','Inferred: open grass.']},
+    attributes:{restrooms:{value:true,confidence:'confirmed'},parking:{value:true,confidence:'confirmed'},largeGrass:{value:true,confidence:'inferred'},dogsAllowed:{value:null,confidence:'unknown'},fenced:{value:false,confidence:'confirmed'},lighting:{value:true,confidence:'unknown'},dogTraffic:{value:'low',confidence:'inferred'},dedicatedDogArea:{value:null,confidence:'unknown'}},
+    navigation:{googleMapsUrl:'https://maps.google.com/?cid=123&mode=driving'},provenance:{provider:'google',placeId:'private-place-id'},...overrides};
+}
+async function planned(recommendations){
+  const b=browser(async()=>({ok:true,json:async()=>({route:{durationMinutes:500,distanceMeters:700000},breakTargetsMinutes:recommendations.map(r=>r.targetMinutes),recommendations})}));
+  await b.element('planBtn').onclick();return b;
+}
+test('normalized recommendation renders identity, product match, real timing, and backend explanations',async()=>{
+  const stop=normalizedStop();const before=JSON.stringify(stop);
+  const b=await planned([{targetMinutes:150,stop}]);const html=b.element('stops').innerHTML;
+  for(const text of ['PLANNED BREAK 1 · 2h 30m','Riverside Meadow','Recreation area','12 River Road','82 MATCH','2h 24m into trip','+6 min detour','Close to planned break','Reported restrooms available.','Inferred: open grass.','Restrooms','Parking','Large grass · inferred','Low dog traffic · inferred','Dog access not confirmed']) assert.ok(html.includes(text),text);
+  assert.ok(html.includes('href="https://maps.google.com/?cid=123&amp;mode=driving" target="_blank" rel="noopener"'));
+  assert.doesNotMatch(html,/79\.5|private-place-id|Lighting|No restrooms|dog-friendly|Hess/);
+  assert.equal(JSON.stringify(stop),before);
+  assert.equal(b.element('routeFrom').textContent,'New York, NY');assert.equal(b.element('routeTo').textContent,'Boston, MA');
+  assert.equal(b.element('dogName').textContent,'Conan');assert.equal(b.element('profile').textContent,'Puppy');
+  assert.equal(b.element('breakPlan').textContent,'Every 2h 30m');assert.equal(b.element('maxDetour').textContent,'10 min');
+});
+test('optional fields and null navigation are omitted safely; zero detour and confirmed dog access are explicit',async()=>{
+  const stop=normalizedStop({primaryType:null,address:null,navigation:null});
+  stop.route.detourMinutes=.2;stop.attributes.dogsAllowed={value:true,confidence:'confirmed'};
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.match(html,/No meaningful route detour/);assert.doesNotMatch(html,/recommendation-nav/);
+  assert.match(html,/Dogs allowed/);assert.doesNotMatch(html,/class="dog-access"/);
+  assert.doesNotMatch(html,/href=|Recreation area|12 River Road/);
+});
+test('inferred dog permission stays labeled and partial coverage preserves API itinerary order',async()=>{
+  const first=normalizedStop();first.attributes.dogsAllowed={value:true,confidence:'inferred'};
+  const last=normalizedStop({id:'real-2',name:'Later Park'});last.route={tripMinutes:460,detourMinutes:14,targetMinutes:450,deltaMinutes:10,timingLabel:'Returned timing label'};
+  const html=(await planned([{targetMinutes:150,stop:first},{targetMinutes:300,stop:null},{targetMinutes:450,stop:last}])).element('stops').innerHTML;
+  assert.match(html,/Dogs allowed · inferred/);assert.match(html,/Dog access not confirmed/);
+  assert.match(html,/PLANNED BREAK 2 · 5h 0m/);assert.match(html,/No strong Pawstop match/);
+  assert.match(html,/current timing and fit requirements/);assert.match(html,/Returned timing label/);
+  assert.match(html,/\+14 min detour/);assert.ok(html.indexOf('Riverside Meadow')<html.indexOf('No strong Pawstop match'));assert.ok(html.indexOf('No strong Pawstop match')<html.indexOf('Later Park'));
+  assert.doesNotMatch(html,/provider failure|Stop location not yet available/);
+});
+test('public strings are escaped instead of interpreted as markup',async()=>{
+  const stop=normalizedStop({name:'<img onerror="bad">',address:'A & B'});stop.pawstop.why=['<script>bad</script>'];
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.match(html,/&lt;img/);assert.match(html,/A &amp; B/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<img|<script/);
+});
+test('route preferences are passed through unchanged and all normalized errors remain sanitized',async()=>{
+  let request;const b=browser(async(_,init)=>{request=JSON.parse(init.body);return {ok:true,json:async()=>({route:{durationMinutes:20,distanceMeters:20000},breakTargetsMinutes:[],recommendations:[]})}});
+  b.chips[0].onclick();b.element('detour').value='4';b.element('avoidRelief').checked=false;
+  await b.element('planBtn').onclick();assert.equal(request.preferences.largeGrass,false);assert.equal(request.preferences.restrooms,true);assert.equal(request.preferences.avoidDedicatedReliefAreas,false);assert.equal(request.maxDetourMinutes,4);
+  for(const code of ['INVALID_INPUT','NO_STOP_CANDIDATES','ROUTE_NOT_FOUND','PROVIDER_ERROR','RATE_LIMITED']){
+    const e=browser(async()=>({ok:false,json:async()=>({error:{code,message:'secret'}})}));await e.element('planBtn').onclick();
+    assert.equal(e.element('planError').textContent,e.read(`routeErrors.${code}`));assert.equal(e.element('planBtn').disabled,false);assert.equal(e.element('planStatus').textContent,'');
+  }
+});
+test('missing recommendation contract is a sanitized error, never reconstructed stops',async()=>{
+  const b=browser(async()=>({ok:true,json:async()=>({route:{durationMinutes:200,distanceMeters:20000},breakTargetsMinutes:[150]})}));await b.element('planBtn').onclick();
+  assert.equal(b.element('planError').textContent,b.read('routeErrors.PROVIDER_ERROR'));assert.equal(b.element('route').classList.contains('hidden'),true);
+});
 
-.native-only{display:none!important}
-.native-app .native-only{display:inline-flex!important}
-.native-action{align-items:center;justify-content:center;min-height:44px;margin:-6px 0 18px;border:1px solid var(--line);border-radius:10px;background:var(--soft-sage);color:var(--forest);padding:10px 14px;font-size:12px;font-weight:600;cursor:pointer}
-.native-action:disabled{opacity:.6;cursor:wait}
-.native-share{align-items:center;justify-content:center;min-height:40px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--forest);padding:8px 13px;font-size:11px;font-weight:600;cursor:pointer}
-.native-app main{padding-top:calc(28px + env(safe-area-inset-top,0px))}
-html.native-app,html.native-app body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto!important;-webkit-overflow-scrolling:touch;touch-action:auto!important}
-html.native-app body{position:static!important}
-html.native-app button,html.native-app input,html.native-app select{touch-action:auto!important}
-html.native-app main{min-height:100vh;height:auto;overflow:visible}
+test('route intro describes real ranking and preserves the dynamic dog name',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  assert.match(html,/Breaks planned for <strong id="dogName"><\/strong> around your route and selected cadence\./);
+  assert.doesNotMatch(html,/Stop locations are coming next/);
+});
+test('real route markup has no demo action or curated-demo copy',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const route=html.split('<section id="route"')[1].split('</section>')[0];
+  assert.doesNotMatch(route,/urgent|demo|needStop|needText|curated/i);
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.doesNotMatch(app,/urgentOrigin|needStop|needText/);
+});
+test('unknown dog access uses one dedicated disclosure without duplicate Why reasons',async()=>{
+  for(const caveat of ['Dog access is not confirmed.','Dog access not confirmed.','Dog access not yet confirmed.','Dog permission is unknown.','Dogs allowed: unconfirmed.']){
+    const stop=normalizedStop();stop.pawstop.why=[caveat,'Reported restrooms available.','Small route detour.'];
+    const before=JSON.stringify(stop);
+    const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+    assert.equal((html.match(/class="dog-access"/g)||[]).length,1);
+    assert.match(html,/class="dog-access">Dog access not confirmed/);
+    assert.ok(!html.includes(`<li>${caveat}</li>`));
+    assert.match(html,/<li>Reported restrooms available[.]<\/li>/);
+    assert.match(html,/<li>Small route detour[.]<\/li>/);
+    assert.equal(JSON.stringify(stop),before);
+  }
+});
+test('Why filtering preserves distinct evidence facts and non-unknown dog-access reasons',async()=>{
+  const stop=normalizedStop();
+  stop.pawstop.why=['Dog access is inferred, not confirmed.','Dogs allowed on leash only.','Dog access is not confirmed. Check seasonal restrictions.','Restroom access is not confirmed.'];
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  for(const reason of stop.pawstop.why)assert.ok(html.includes(`<li>${reason}</li>`));
+  for(const confidence of ['confirmed','inferred']){
+    const known=normalizedStop();known.attributes.dogsAllowed={value:true,confidence};
+    known.pawstop.why=['Dog access is not confirmed.'];
+    const result=(await planned([{targetMinutes:150,stop:known}])).element('stops').innerHTML;
+    assert.match(result,/<li>Dog access is not confirmed[.]<\/li>/);
+  }
+});
+test('hyphenated and underscored normalized place types display as spaces without mutation',async()=>{
+  for(const [primaryType,label] of [['rest-area','Rest area'],['recreation_area','Recreation area']]){
+    const stop=normalizedStop({primaryType});
+    const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+    assert.ok(html.includes(`<span class="type-badge">${label}</span>`));assert.equal(stop.primaryType,primaryType);
+  }
+});
 
-.location-suggestions { margin-top: 6px; background: #fffdf8; border: 1px solid #dcd8cd; border-radius: 12px; overflow: hidden; }
-.location-suggestions[hidden] { display: none; }
-.location-suggestions button { display: block; width: 100%; margin: 0; padding: 12px 14px; border: 0; border-bottom: 1px solid #e8e3d9; border-radius: 0; background: transparent; color: #173c32; text-align: left; font: inherit; font-size: 16px; cursor: pointer; }
-.location-suggestions button:hover, .location-suggestions button[aria-selected="true"] { background: #eaf1eb; }
-.location-suggestions img { display: block; width: 120px; height: auto; margin: 10px 14px; }
+test('real cards display only normalized evidence-strength badges alongside match',async()=>{
+  for(const [evidenceStrength,label] of [['strong','MORE DETAILS CONFIRMED'],['moderate','SOME DETAILS CONFIRMED'],['limited','SOME DETAILS UNCONFIRMED'],['very_limited','MOST DETAILS UNCONFIRMED'],[null,null]]){
+    const stop=normalizedStop();stop.pawstop={...stop.pawstop,evidenceStrength,evidenceCoverage:40,why:['Dog access is not confirmed.']};
+    const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+    assert.match(html,/82 MATCH/);
+    if(label)assert.ok(html.includes(`<span class="evidence-badge">${label}</span>`));else assert.doesNotMatch(html,/class="evidence-badge"/);
+    assert.doesNotMatch(html,/<li>Dog access is not confirmed[.]<\/li>/);assert.match(html,/class="dog-access">Dog access not confirmed/);assert.doesNotMatch(html,/40%|confidence percentage|safety confidence/);
+  }
+});
+
+test('place website is a quiet separate returned verification link without a policy claim',async()=>{
+  const stop=normalizedStop({verification:{placeWebsiteUrl:'https://example.org/park?a=1&b=2'}});
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.ok(html.includes('href="https://example.org/park?a=1&amp;b=2" target="_blank" rel="noopener">Place website ↗'));
+  assert.match(html,/Dog access not confirmed/);assert.doesNotMatch(html,/Official policy/);
+  const missing=(await planned([{targetMinutes:150,stop:normalizedStop({verification:null})}])).element('stops').innerHTML;
+  assert.doesNotMatch(missing,/Place website/);
+});
+
+for(const destination of ['Boston, MA','Nashville, TN','Chicago, IL']){
+  test(`real Jersey City → ${destination} route cannot launch curated demo`,async()=>{
+    let request;
+    const stop=normalizedStop();
+    const b=browser(async(_,init)=>{request=JSON.parse(init.body);return {ok:true,json:async()=>({route:{durationMinutes:500,distanceMeters:700000},breakTargetsMinutes:[150],recommendations:[{targetMinutes:150,stop}]})}});
+    b.element('from').value='Jersey City, NJ';b.element('to').value=destination;
+    await b.element('planBtn').onclick();
+    assert.equal(request.destination,destination);assert.equal(b.element('routeTo').textContent,destination);
+    assert.match(b.element('stops').innerHTML,/Riverside Meadow/);assert.equal(b.element('needStop').onclick,undefined);
+    b.element('plannerDemo').onclick(); // Even a programmatic call cannot launch from route results.
+    assert.equal(b.element('urgent').classList.contains('hidden'),true);assert.equal(b.element('route').classList.contains('hidden'),false);
+    b.element('backBtn').onclick();b.element('plannerDemo').onclick();
+    assert.equal(b.element('urgent').classList.contains('hidden'),false);assert.equal(b.element('urgentTitle').textContent,'Demo stop for Conan');
+    b.element('urgentBack').onclick();assert.equal(b.element('planner').classList.contains('hidden'),false);
+    assert.equal(b.element('route').classList.contains('hidden'),true);
+  });
+}
+test('planner and urgent screen prominently disclose fixed route and simulated context',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const planner=html.split('<section id="planner"')[1].split('</section>')[0];
+  assert.match(planner,/type="button" aria-describedby="plannerDemoContext">Preview urgent-stop demo/);
+  assert.match(planner,/id="plannerDemoContext"[^>]*>Curated Jersey City → Chicago example\. Not based on your entered route or live location\./);
+  const urgent=html.split('<section id="urgent"')[1].split('</section>')[0];
+  assert.match(urgent,/URGENT-STOP DEMO/);assert.match(urgent,/Curated Jersey City → Chicago example/);
+  assert.match(urgent,/Stops are curated and timing is simulated, not based on your planned route or live location/);
+  assert.doesNotMatch(urgent,/stop ahead|How soon does Conan/);
+});
+test('planner demo cannot interrupt an in-flight real route request',async()=>{
+  let resolve;const pending=new Promise(r=>resolve=r);
+  const b=browser(async()=>{await pending;return {ok:true,json:async()=>({route:{durationMinutes:20,distanceMeters:20000},breakTargetsMinutes:[],recommendations:[]})}});
+  const done=b.element('planBtn').onclick();b.element('plannerDemo').onclick();
+  assert.equal(b.element('urgent').classList.contains('hidden'),true);
+  resolve();await done;assert.equal(b.element('route').classList.contains('hidden'),false);
+});
+
+
+test('mixed real recommendations render selective evidence, MATCH, gaps, and API order',async()=>{
+  const first=normalizedStop({lat:40.2,lng:-74.3});
+  first.attributes.largeGrass={value:null,confidence:'unknown'};
+  first.attributes.dogTraffic={value:null,confidence:'unknown'};
+  const second=normalizedStop({name:'Second Park'});
+  second.route={...second.route,tripMinutes:302,targetMinutes:300};
+  second.attributes.dogsAllowed={value:true,confidence:'confirmed'};
+  const html=(await planned([{targetMinutes:150,stop:first},{targetMinutes:300,stop:second},{targetMinutes:450,stop:null}])).element('stops').innerHTML;
+  for(const text of ['Riverside Meadow','Second Park','82 MATCH','Restrooms','Parking','Dogs allowed','Dog access not confirmed','No strong Pawstop match'])assert.ok(html.includes(text),text);
+  assert.doesNotMatch(html,/% MATCH|% FIT|Stop location not yet available|Hess/);
+  assert.doesNotMatch(html.split('</article>')[0],/Large grass|Low dog traffic/);
+  assert.equal((html.match(/Dog access not confirmed/g)||[]).length,1);
+  assert.ok(html.indexOf('Riverside Meadow')<html.indexOf('Second Park'));
+  assert.ok(html.indexOf('Second Park')<html.indexOf('No strong Pawstop match'));
+});
+test('real navigation uses submitted route snapshot and selected coordinates without a key',async()=>{
+  const b=await planned([{targetMinutes:150,stop:normalizedStop({lat:40.2,lng:-74.3})}]);
+  b.element('from').value='Changed after submission';
+  const url=new URL(b.read('recommendationNavUrl(routePlan.recommendations[0].stop)'));
+  assert.equal(url.origin+url.pathname,'https://www.google.com/maps/dir/');
+  for(const [key,value] of Object.entries({api:'1',origin:'New York, NY',destination:'Boston, MA',waypoints:'40.2,-74.3',travelmode:'driving'}))assert.equal(url.searchParams.get(key),value);
+  assert.doesNotMatch(url.href,/key=/i);
+  assert.match(b.element('stops').innerHTML,/target="_blank" rel="noopener">Open in Google Maps/);
+});
+test('invalid coordinates fall back only to safe public Google Maps links',async()=>{
+  for(const coords of [{},{lat:91,lng:0},{lat:0,lng:181},{lat:'40',lng:2},{lat:null,lng:null}]){
+    const html=(await planned([{targetMinutes:150,stop:normalizedStop(coords)}])).element('stops').innerHTML;
+    assert.match(html,/href="https:\/\/maps.google.com\/\?cid=123&amp;mode=driving"/);
+  }
+  for(const url of ['javascript:alert(1)','https://evil.example/','https://www.google.com@evil.example/','https://maps.google.com.evil.example/',null]){
+    const html=(await planned([{targetMinutes:150,stop:normalizedStop({navigation:{googleMapsUrl:url}})}])).element('stops').innerHTML;
+    assert.doesNotMatch(html,/recommendation-nav/);
+  }
+});
+test('malformed individual stops become gaps while later recommendations survive',async()=>{
+  for(const bad of [{},normalizedStop({name:'  '}),normalizedStop({route:{tripMinutes:NaN,detourMinutes:2}}),normalizedStop({pawstop:{matchScore:Infinity,why:[]}})]){
+    const b=await planned([{targetMinutes:150,stop:bad},{targetMinutes:300,stop:normalizedStop({name:'Later valid stop'})}]);
+    assert.match(b.element('stops').innerHTML,/No strong Pawstop match[\s\S]*Later valid stop/);
+    assert.equal(b.element('route').classList.contains('hidden'),false);
+  }
+});
+test('all provider text including type and malicious anchors stays escaped',async()=>{
+  const stop=normalizedStop({name:'<script>alert(1)</script>',address:'<img src=x onerror="alert(1)">',primaryType:'<a href="javascript:alert(1)">bad</a>'});
+  stop.pawstop.why=['<a onclick="alert(1)">reason</a>'];
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  for(const escaped of ['&lt;script&gt;','&lt;img','&lt;a','&quot;'])assert.ok(html.includes(escaped));
+  assert.doesNotMatch(html,/<script|<img|<a onclick|<a href="javascript/);
+});
+test('explanations stay compact and unknown dog access remains visible beyond truncation',async()=>{
+  const stop=normalizedStop();stop.pawstop.why=['One','Two','Three','Four','Dog permission is unknown.'];
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.equal((html.match(/<li>/g)||[]).length,4);
+  assert.match(html,/Dog access not confirmed/);
+});
+test('active frontend copy has no stale discovery placeholders',()=>{
+  for(const file of ['../app.js','../index.html'])assert.doesNotMatch(fs.readFileSync(require.resolve(file),'utf8'),/Stop locations are coming next|Real stop discovery is the next V2.2 phase|no real stop recommendations yet/);
+});
+
+
+test('tester-facing header uses beta rather than internal phase language',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  assert.match(html,/class="version">BETA<\/span>/);
+  assert.doesNotMatch(html,/V2\.2 PHASE 1/);
+});
+
+test('malformed provider address codes are hidden without changing normal street addresses',async()=>{
+  const malformed=normalizedStop({address:'936837, 149838 State Rte 1830, Reynoldsville, PA 15851, USA'});
+  const malformedHtml=(await planned([{targetMinutes:150,stop:malformed}])).element('stops').innerHTML;
+  assert.match(malformedHtml,/Reynoldsville, PA 15851, USA/);
+  assert.doesNotMatch(malformedHtml,/936837|149838/);
+
+  const carlisle=normalizedStop({address:'17015, mile marker 38, 38 I-81, Carlisle, PA 17015, USA'});
+  const carlisleHtml=(await planned([{targetMinutes:150,stop:carlisle}])).element('stops').innerHTML;
+  assert.match(carlisleHtml,/Carlisle, PA 17015, USA/);
+  assert.doesNotMatch(carlisleHtml,/17015, mile marker 38|38 I-81/);
+
+  const normal=normalizedStop({address:'12345 Main St, Springfield, PA 19000, USA'});
+  const normalHtml=(await planned([{targetMinutes:150,stop:normal}])).element('stops').innerHTML;
+  assert.match(normalHtml,/12345 Main St, Springfield, PA 19000, USA/);
+});
+
+test('route explanation uses consumer-facing recommendation language',()=>{
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(app,/looks for real stops near each planned break/);
+  assert.match(app,/leaves that break open rather than forcing a poor match/);
+  assert.doesNotMatch(app,/Gaps remain explicit where no strong match was found/);
+});
+
+
+test('rest-area sub-facility names use the named service plaza when available',async()=>{
+  const stop=normalizedStop({
+    name:'Truckers Lounge',
+    primaryType:'rest-area',
+    address:'Middle Ridge Service Plaza, Ohio Tpke Westbound, Amherst, OH 44001, USA'
+  });
+  const html=(await planned([{targetMinutes:150,stop}])).element('stops').innerHTML;
+  assert.match(html,/Middle Ridge Service Plaza/);
+  assert.doesNotMatch(html,/>Truckers Lounge</);
+  assert.match(html,/82 MATCH/);
+
+  const ordinary=normalizedStop({name:'Willington Rest Area, I-84 Eastbound',primaryType:'rest-area',address:'I-84, Willington, CT 06279, USA'});
+  const ordinaryHtml=(await planned([{targetMinutes:150,stop:ordinary}])).element('stops').innerHTML;
+  assert.match(ordinaryHtml,/Willington Rest Area, I-84 Eastbound/);
+});
+
+test('route heading keeps each city-state label together on mobile',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  assert.match(html,/class="route-destination"/);
+  assert.match(css,/#routeFrom,.route-destination\{white-space:nowrap\}/);
+  assert.match(css,/#route h2\{overflow-wrap:normal\}/);
+});
+
+
+test('native shell uses production Pawstop API while web keeps relative routing',()=>{
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(app,/NATIVE_API_ORIGIN="https:\/\/pawstop-one\.vercel\.app"/);
+  assert.match(app,/location\.protocol==="capacitor:"/);
+  assert.match(app,/fetch\(apiUrl\("\/api\/plan-route"\)/);
+});
+
+
+test('native app UI and behavior hooks stay isolated from the web surface',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(html,/id="useLocation" class="native-only native-action"/);
+  assert.match(html,/id="shareRoute" class="native-only native-share"/);
+  assert.match(css,/\.native-only\{display:none!important\}/);
+  assert.match(css,/\.native-app \.native-only\{display:inline-flex!important\}/);
+  assert.match(app,/currentOriginCoordinates/);
+  assert.match(app,/PawstopNative/);
+  assert.match(app,/pawstop\.nativeProfile\.v1/);
+  assert.match(app,/originCoordinates:currentOriginCoordinates/);
+});
+
+test('mobile build injects a bundled native bridge with location share and haptics',()=>{
+  const build=fs.readFileSync(require.resolve('../scripts/build-mobile.mjs'),'utf8');
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(build,/native-bridge\.js/);
+  assert.match(build,/esbuild/);
+  assert.match(bridge,/@capacitor\/geolocation/);
+  assert.match(bridge,/@capacitor\/share/);
+  assert.match(bridge,/@capacitor\/haptics/);
+});
+
+
+test('native location bridge uses a bounded short-lived watch and falls back to WKWebView geolocation',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(bridge,/function withTimeout/);
+  assert.match(bridge,/Geolocation\.watchPosition/);
+  assert.match(bridge,/Geolocation\.clearWatch/);
+  assert.match(bridge,/navigator\.geolocation\.getCurrentPosition/);
+  assert.match(bridge,/withTimeout\(pluginPosition\(\), 35000\)/);
+  assert.match(bridge,/withTimeout\(webviewPosition\(\), 20000\)/);
+});
+
+
+test('native location feedback is shown beside the location button',()=>{
+  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(html,/id="locationStatus"/);
+  assert.match(app,/Current location selected\./);
+  assert.match(app,/Location wasn’t available/);
+  assert.match(app,/Location access is off for Pawstop/);
+});
+
+test('native location tries WKWebView after plugin permission failures',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(bridge,/catch \(pluginError\)/);
+  assert.match(bridge,/withTimeout\(webviewPosition\(\), 20000\)/);
+  assert.match(bridge,/makeLocationError\('LOCATION_DENIED'\)/);
+  assert.match(bridge,/makeLocationError\('LOCATION_UNAVAILABLE'\)/);
+});
+
+
+test('native iOS shell explicitly allows vertical route scrolling',()=>{
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  assert.match(css,/html\.native-app,html\.native-app body\{[^}]*overflow-y:auto!important/);
+  assert.match(css,/-webkit-overflow-scrolling:touch/);
+  assert.match(css,/touch-action:auto!important/);
+  assert.match(css,/html\.native-app button,html\.native-app input,html\.native-app select\{touch-action:auto!important\}/);
+  assert.match(css,/html\.native-app main\{min-height:100vh;height:auto;overflow:visible\}/);
+});
+
+
+test('native iOS does not force pan-y or manipulation on interactive controls',()=>{
+  const css=fs.readFileSync(require.resolve('../style.css'),'utf8');
+  const nativeBlock=css.slice(css.indexOf('html.native-app,html.native-app body'));
+  assert.doesNotMatch(nativeBlock,/touch-action:pan-y/);
+  assert.match(nativeBlock,/button,html\.native-app input,html\.native-app select\{touch-action:auto!important\}/);
+});
+
+
+
+
+test('native iOS current position uses a recoverable watch and ignores transient location events',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  const start=bridge.indexOf('async function pluginPosition()');
+  const end=bridge.indexOf('function webviewPosition()');
+  const pluginBlock=bridge.slice(start,end);
+  assert.match(pluginBlock,/Geolocation\.watchPosition/);
+  assert.match(pluginBlock,/Geolocation\.clearWatch/);
+  assert.doesNotMatch(pluginBlock,/checkPermissions/);
+  assert.doesNotMatch(pluginBlock,/requestPermissions/);
+  assert.match(pluginBlock,/maximumAge: 300000/);
+  assert.match(pluginBlock,/OS-PLUG-GLOC-0002/);
+  assert.match(pluginBlock,/OS-PLUG-GLOC-0010/);
+  assert.match(pluginBlock,/LOCATION_WATCH_TIMEOUT/);
+  assert.match(bridge,/withTimeout\(pluginPosition\(\), 35000\)/);
+});
+
+
+test('native beta location failures surface the exact plugin diagnostic code',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(bridge,/pawstopDiagnostic/);
+  assert.match(bridge,/Pawstop location diagnostic/);
+  assert.match(app,/Diagnostic:/);
+  assert.match(app,/LOCATION_SERVICES_DISABLED/);
+  assert.match(app,/LOCATION_RESTRICTED/);
+  assert.match(app,/LOCATION_TIMEOUT/);
+});
+
+
+test('native iOS location watch clears itself after the first valid fix',()=>{
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  const start=bridge.indexOf('async function pluginPosition()');
+  const end=bridge.indexOf('function webviewPosition()');
+  const pluginBlock=bridge.slice(start,end);
+  assert.match(pluginBlock,/if \(position\) \{[\s\S]*finish\(resolve, position\)/);
+  assert.match(pluginBlock,/cleanup\(\)/);
+  assert.match(pluginBlock,/clearWatch/);
+});
+
+
+test('iOS sync generates and registers direct Apple CoreLocation plugin',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+  assert.match(configure,/PawstopLocationPlugin/);
+  assert.match(configure,/CLLocationManager/);
+  assert.match(configure,/requestLocation/);
+  assert.match(configure,/didFailWithError/);
+  assert.match(configure,/registerPluginInstance\(PawstopLocationPlugin\(\)\)/);
+  assert.match(configure,/customClass="ViewController" customModule="App"/);
+  assert.match(configure,/PawstopNative\.swift in Sources/);
+  assert.match(bridge,/registerPlugin\('PawstopLocation'\)/);
+  assert.match(bridge,/directCoreLocationPosition/);
+  assert.match(bridge,/PAWSTOP_CORELOCATION_TIMEOUT/);
+});
+
+
+test('custom iOS bridge inherits the app target module so local plugin registration runs',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  assert.match(configure,/customModuleProvider="target"/);
+  assert.match(configure,/registerPluginInstance\(PawstopLocationPlugin\(\)\)/);
+});
+
+test('location beta diagnostic prioritizes direct CoreLocation failure code',()=>{
+  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
+  assert.match(app,/pawstopDiagnostic\?\.directCode/);
+  assert.match(app,/directCode\|\|pluginCode/);
+});
+
+
+test('iOS SceneDelegate instantiates Pawstop custom bridge controller',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  assert.match(configure,/SceneDelegate\.swift/);
+  assert.match(configure,/window\?\.rootViewController = ViewController\(\)/);
+  assert.match(configure,/window\?\.rootViewController = CAPBridgeViewController\(\)/);
+});
+
+
+test('direct iOS location bridge requests foreground permission and one location',()=>{
+  const configure=fs.readFileSync(require.resolve('../scripts/configure-ios.mjs'),'utf8');
+  const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
+
+  assert.match(configure,/NSLocationWhenInUseUsageDescription/);
+  assert.match(configure,/case \.notDetermined:\s+manager\.requestWhenInUseAuthorization\(\)/);
+  assert.match(configure,/guard manager === self\.manager, !requestedLocation else \{ return \}\s+requestedLocation = true\s+manager\.requestLocation\(\)/);
+  assert.match(configure,/locationManagerDidChangeAuthorization[\s\S]*case \.authorizedWhenInUse, \.authorizedAlways:\s+requestLocation\(manager\)/);
+  assert.doesNotMatch(configure,/CLLocationUpdate\.liveUpdates|CLServiceSession\(/);
+  assert.match(bridge,/withTimeout\(directCoreLocationPosition\(\), 60000, 'PAWSTOP_NATIVE_BRIDGE_TIMEOUT'\)/);
+});

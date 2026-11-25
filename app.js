@@ -106,7 +106,19 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
       link.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(`${position.latitude},${position.longitude}`);
       link.target='_blank';
       link.rel='noopener noreferrer';
-      locationStatus.replaceChildren(address,document.createElement('br'),detail,document.createElement('br'),link);
+      const change=document.createElement('button');
+      change.type='button';
+      change.className='change-location';
+      change.textContent='Change starting location';
+      change.onclick=()=>{
+        currentOriginCoordinates=null;
+        delete selectedPlaces.from;
+        locationRevision++;
+        $('from').value='';
+        locationStatus.replaceChildren();
+        $('from').focus();
+      };
+      locationStatus.replaceChildren(address,document.createElement('br'),detail,document.createElement('br'),link,document.createElement('br'),change);
       locationStatus.classList.toggle('warning',weak);
       if(weak){
         const warning=document.createElement('span');
@@ -225,7 +237,9 @@ function safePublicUrl(value,googleOnly=false){
 function recommendationNavUrl(stop){
   if(Number.isFinite(stop.lat)&&Math.abs(stop.lat)<=90&&Number.isFinite(stop.lng)&&Math.abs(stop.lng)<=180&&routeInputs){
     return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(routeInputs.origin)
-      +"&destination="+encodeURIComponent(routeInputs.destination)+"&waypoints="+encodeURIComponent(`${stop.lat},${stop.lng}`)+"&travelmode=driving";
+      +"&destination="+encodeURIComponent(routeInputs.destination)+"&waypoints="+encodeURIComponent(`${stop.lat},${stop.lng}`)+"&travelmode=driving"
+      +(routeInputs.originPlaceId?"&origin_place_id="+encodeURIComponent(routeInputs.originPlaceId):"")
+      +(routeInputs.destinationPlaceId?"&destination_place_id="+encodeURIComponent(routeInputs.destinationPlaceId):"");
   }
   return safePublicUrl(stop.navigation?.googleMapsUrl,true);
 }
@@ -313,7 +327,7 @@ $("planBtn").onclick=async()=>{
       ||!Array.isArray(data.recommendations)||data.recommendations.length!==data.breakTargetsMinutes.length
       ||!data.recommendations.every((r,i)=>r&&r.targetMinutes===data.breakTargetsMinutes[i]&&Object.hasOwn(r,"stop"))) throw new Error("PROVIDER_ERROR");
     routePlan=data;
-    routeInputs={origin:request.originCoordinates?`${request.originCoordinates.latitude},${request.originCoordinates.longitude}`:request.origin,destination:request.destination};
+    routeInputs={origin:request.originCoordinates?`${request.originCoordinates.latitude},${request.originCoordinates.longitude}`:request.origin,destination:request.destination,originPlaceId:request.originPlaceId,destinationPlaceId:request.destinationPlaceId};
     dogName=request.dogName;avoidRelief=request.preferences.avoidDedicatedReliefAreas;
     maxDetour=request.maxDetourMinutes;lifeStage=request.lifeStage[0].toUpperCase()+request.lifeStage.slice(1);
     cadenceMinutes=request.breakCadenceMinutes;
@@ -417,7 +431,7 @@ for (const id of ['from', 'to']) {
   const container = document.createElement('div');
   container.className = 'location-suggestions';
   container.hidden = true;
-  input.parentElement.append(container);
+  input.parentElement.after(container);
   input.autocomplete = 'off';
   input.setAttribute('role', 'combobox');
   input.setAttribute('aria-autocomplete', 'list');

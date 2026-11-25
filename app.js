@@ -22,6 +22,7 @@ let preferences={grass:true,traffic:true,restrooms:true,detour:true,fenced:false
 let routePlan=null;
 let routeInputs=null;
 let currentOriginCoordinates=null;
+let locationRevision=0;
 let lifeStage="Puppy", cadenceMinutes=150;
 let avoidRelief=true, maxDetour=10, dogName="Conan", current=null, urgentWindow=30;
 
@@ -72,10 +73,11 @@ for(const id of ["dog","age","break","detour","avoidRelief"]){
   const field=$(id);
   if(field) field.onchange=()=>saveNativeProfile();
 }
-$("from").oninput=()=>{currentOriginCoordinates=null};
+$("from").oninput=()=>{currentOriginCoordinates=null;locationRevision++;$("locationStatus").replaceChildren()};
 if($("useLocation")) $("useLocation").onclick=async()=>{
   const bridge=nativeBridge();
   if(!bridge?.getCurrentPosition) return;
+  const revision=++locationRevision;
   const locationStatus=$("locationStatus");
   $("useLocation").disabled=true;
   $("useLocation").textContent="Finding your location…";
@@ -89,11 +91,36 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
     bridge.impact?.();
     const position=await bridge.getCurrentPosition();
     if(!Number.isFinite(position?.latitude)||!Number.isFinite(position?.longitude)) throw new Error("LOCATION_UNAVAILABLE");
+    if(revision!==locationRevision) return;
     currentOriginCoordinates={latitude:position.latitude,longitude:position.longitude};
     $("from").value="Current location";
-    if(locationStatus) locationStatus.textContent="Current location is ready.";
+    if(locationStatus){
+      const accuracy=Number.isFinite(position.accuracy)&&position.accuracy>=0?Math.ceil(position.accuracy):null;
+      const weak=accuracy===null||accuracy>100;
+      const address=document.createElement('span');
+      address.textContent='Current location selected.';
+      const detail=document.createElement('span');
+      detail.textContent=accuracy===null?'Location accuracy unavailable.':`Reported location accuracy approximately ${accuracy} m.`;
+      const link=document.createElement('a');
+      link.textContent='View starting point in Google Maps';
+      link.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(`${position.latitude},${position.longitude}`);
+      link.target='_blank';
+      link.rel='noopener noreferrer';
+      locationStatus.replaceChildren(address,document.createElement('br'),detail,document.createElement('br'),link);
+      locationStatus.classList.toggle('warning',weak);
+      if(weak){
+        const warning=document.createElement('span');
+        warning.textContent=' Check the pin before planning. Try your location again or enter an address if it looks off.';
+        locationStatus.append(document.createElement('br'),warning);
+      }
+      fetch(apiUrl('/api/location-address'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentOriginCoordinates),signal:AbortSignal.timeout(6000)})
+        .then(response=>response.ok?response.json():null)
+        .then(result=>{if(revision===locationRevision&&result?.address) address.textContent=`Near ${result.address}`})
+        .catch(()=>{});
+    }
     $("planStatus").textContent="Using your current location as the trip start.";
   }catch(error){
+    if(revision!==locationRevision) return;
     currentOriginCoordinates=null;
     if(locationStatus){
       const directCode=error?.pawstopDiagnostic?.directCode||"";
@@ -442,7 +469,7 @@ for (const id of ['from', 'to']) {
           option.onclick = () => {
             input.value = place.label;
             selectedPlaces[id] = place.placeId;
-            if (id === 'from') currentOriginCoordinates = null;
+            if (id === 'from') { currentOriginCoordinates = null; locationRevision++; $('locationStatus').replaceChildren(); }
             close();
             input.focus();
           };

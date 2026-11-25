@@ -8,7 +8,7 @@ const root = new URL('../', import.meta.url);
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
-for (const file of ['app.js', 'style.css', 'favicon.svg', 'favicon-96.png']) {
+for (const file of ['app.js', 'style.css', 'favicon.svg', 'favicon-96.png', 'privacy.html', 'support.html']) {
   const source = new URL(file, root);
   if (!existsSync(source)) throw new Error(`Missing mobile asset: ${file}`);
   await cp(source, new URL(file, out));

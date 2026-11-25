@@ -5,7 +5,7 @@ const fs = require('node:fs');
 // Minimal DOM harness exercises the real event handlers without dependencies or live requests.
 function browser(fetch){
   const elements=new Map();
-  function element(id){if(!elements.has(id)){const classes=new Set(['route','urgent','planError'].includes(id)?['hidden']:[]);elements.set(id,{value:'',textContent:'',innerHTML:'',disabled:false,dataset:{},setAttribute(){},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),contains:x=>classes.has(x),toggle(x,on){if(on??!classes.has(x))classes.add(x);else classes.delete(x)}}});}return elements.get(id);}
+  function element(id){if(!elements.has(id)){const classes=new Set(['route','urgent','planError'].includes(id)?['hidden']:[]);elements.set(id,{value:'',textContent:'',innerHTML:'',disabled:false,dataset:{},append(){},after(){},replaceChildren(){},removeAttribute(){},addEventListener(){},parentElement:{after(){}},setAttribute(){},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),contains:x=>classes.has(x),toggle(x,on){if(on??!classes.has(x))classes.add(x);else classes.delete(x)}}});}return elements.get(id);}
   const chips=['grass','traffic','restrooms','detour','fenced','lighting'].map(pref=>({...element('chip'+pref),dataset:{pref}}));
   chips.slice(0,4).forEach(chip=>chip.classList.add('active'));
   const pills=['15','30','60'].map(window=>({...element('pill'+window),dataset:{window}}));
@@ -13,7 +13,7 @@ function browser(fetch){
   for(const [id,value] of Object.entries({from:'New York, NY',to:'Boston, MA',dog:'Conan',age:'Puppy',break:'2.5',detour:'10'}))element(id).value=value;
   element('avoidRelief').checked=true;
   let navigation;
-  const context=vm.createContext({document:{getElementById:element,querySelectorAll:s=>s==='.chip'?chips:s==='.time-pill'?pills:s==='[data-alt]'?alternatives:[]},window:{open:url=>navigation=url},fetch,URL,AbortSignal,scrollTo(){}});
+  const context=vm.createContext({document:{createElement:()=>element(`generated-${elements.size}`),getElementById:element,querySelectorAll:s=>s==='.chip'?chips:s==='.time-pill'?pills:s==='[data-alt]'?alternatives:[]},window:{open:url=>navigation=url},fetch,URL,AbortSignal,scrollTo(){}});
   vm.runInContext(fs.readFileSync(require.resolve('../app.js'),'utf8'),context);
   return {element,pills,alternatives,chips,read:expression=>vm.runInContext(expression,context),navigation:()=>navigation};
 }
@@ -393,7 +393,7 @@ test('native location feedback is shown beside the location button',()=>{
   const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
   const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
   assert.match(html,/id="locationStatus"/);
-  assert.match(app,/Current location is ready\./);
+  assert.match(app,/Current location selected\./);
   assert.match(app,/Location wasn’t available/);
   assert.match(app,/Location access is off for Pawstop/);
 });
@@ -472,8 +472,8 @@ test('iOS sync generates and registers direct Apple CoreLocation plugin',()=>{
   const bridge=fs.readFileSync(require.resolve('../mobile/native-bridge.js'),'utf8');
   assert.match(configure,/PawstopLocationPlugin/);
   assert.match(configure,/CLLocationManager/);
-  assert.match(configure,/startUpdatingLocation/);
-  assert.match(configure,/locationUnknown/);
+  assert.match(configure,/requestLocation/);
+  assert.match(configure,/didFailWithError/);
   assert.match(configure,/registerPluginInstance\(PawstopLocationPlugin\(\)\)/);
   assert.match(configure,/customClass="ViewController" customModule="App"/);
   assert.match(configure,/PawstopNative\.swift in Sources/);

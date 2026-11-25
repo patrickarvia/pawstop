@@ -22,6 +22,7 @@ let preferences={grass:true,traffic:true,restrooms:true,detour:true,fenced:false
 let routePlan=null;
 let routeInputs=null;
 let currentOriginCoordinates=null;
+let locationRevision=0;
 let lifeStage="Puppy", cadenceMinutes=150;
 let avoidRelief=true, maxDetour=10, dogName="Conan", current=null, urgentWindow=30;
 
@@ -72,10 +73,11 @@ for(const id of ["dog","age","break","detour","avoidRelief"]){
   const field=$(id);
   if(field) field.onchange=()=>saveNativeProfile();
 }
-$("from").oninput=()=>{currentOriginCoordinates=null};
+$("from").oninput=()=>{currentOriginCoordinates=null;locationRevision++;$("locationStatus").replaceChildren()};
 if($("useLocation")) $("useLocation").onclick=async()=>{
   const bridge=nativeBridge();
   if(!bridge?.getCurrentPosition) return;
+  const revision=++locationRevision;
   const locationStatus=$("locationStatus");
   $("useLocation").disabled=true;
   $("useLocation").textContent="Finding your location…";
@@ -89,11 +91,48 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
     bridge.impact?.();
     const position=await bridge.getCurrentPosition();
     if(!Number.isFinite(position?.latitude)||!Number.isFinite(position?.longitude)) throw new Error("LOCATION_UNAVAILABLE");
+    if(revision!==locationRevision) return;
     currentOriginCoordinates={latitude:position.latitude,longitude:position.longitude};
     $("from").value="Current location";
-    if(locationStatus) locationStatus.textContent="Current location is ready.";
+    if(locationStatus){
+      const accuracy=Number.isFinite(position.accuracy)&&position.accuracy>=0?Math.ceil(position.accuracy):null;
+      const weak=accuracy===null||accuracy>100;
+      const address=document.createElement('span');
+      address.textContent='Current location selected.';
+      const detail=document.createElement('span');
+      detail.textContent=accuracy===null?'Location accuracy unavailable.':`Reported location accuracy approximately ${accuracy} m.`;
+      const link=document.createElement('a');
+      link.textContent='View starting point in Google Maps';
+      link.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(`${position.latitude},${position.longitude}`);
+      link.target='_blank';
+      link.rel='noopener noreferrer';
+      const change=document.createElement('button');
+      change.type='button';
+      change.className='change-location';
+      change.textContent='Change starting location';
+      change.onclick=()=>{
+        currentOriginCoordinates=null;
+        delete selectedPlaces.from;
+        locationRevision++;
+        $('from').value='';
+        locationStatus.replaceChildren();
+        $('from').focus();
+      };
+      locationStatus.replaceChildren(address,document.createElement('br'),detail,document.createElement('br'),link,document.createElement('br'),change);
+      locationStatus.classList.toggle('warning',weak);
+      if(weak){
+        const warning=document.createElement('span');
+        warning.textContent=' Check the pin before planning. Try your location again or enter an address if it looks off.';
+        locationStatus.append(document.createElement('br'),warning);
+      }
+      fetch(apiUrl('/api/location-address'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentOriginCoordinates),signal:AbortSignal.timeout(6000)})
+        .then(response=>response.ok?response.json():null)
+        .then(result=>{if(revision===locationRevision&&result?.address) address.textContent=`Near ${result.address}`})
+        .catch(()=>{});
+    }
     $("planStatus").textContent="Using your current location as the trip start.";
   }catch(error){
+    if(revision!==locationRevision) return;
     currentOriginCoordinates=null;
     if(locationStatus){
       const directCode=error?.pawstopDiagnostic?.directCode||"";
@@ -198,7 +237,9 @@ function safePublicUrl(value,googleOnly=false){
 function recommendationNavUrl(stop){
   if(Number.isFinite(stop.lat)&&Math.abs(stop.lat)<=90&&Number.isFinite(stop.lng)&&Math.abs(stop.lng)<=180&&routeInputs){
     return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(routeInputs.origin)
-      +"&destination="+encodeURIComponent(routeInputs.destination)+"&waypoints="+encodeURIComponent(`${stop.lat},${stop.lng}`)+"&travelmode=driving";
+      +"&destination="+encodeURIComponent(routeInputs.destination)+"&waypoints="+encodeURIComponent(`${stop.lat},${stop.lng}`)+"&travelmode=driving"
+      +(routeInputs.originPlaceId?"&origin_place_id="+encodeURIComponent(routeInputs.originPlaceId):"")
+      +(routeInputs.destinationPlaceId?"&destination_place_id="+encodeURIComponent(routeInputs.destinationPlaceId):"");
   }
   return safePublicUrl(stop.navigation?.googleMapsUrl,true);
 }
@@ -261,6 +302,7 @@ $("planBtn").onclick=async()=>{
   if($("planBtn").disabled) return;
   const request={
     origin:$("from").value.trim(),destination:$("to").value.trim(),
+    originPlaceId:selectedPlaces.from,destinationPlaceId:selectedPlaces.to,
     ...(currentOriginCoordinates?{originCoordinates:currentOriginCoordinates}:{}),
     dogName:$("dog").value.trim()||"Your dog",lifeStage:$("age").value.toLowerCase(),
     breakCadenceMinutes:Number($("break").value)*60,maxDetourMinutes:Number($("detour").value),
@@ -285,7 +327,7 @@ $("planBtn").onclick=async()=>{
       ||!Array.isArray(data.recommendations)||data.recommendations.length!==data.breakTargetsMinutes.length
       ||!data.recommendations.every((r,i)=>r&&r.targetMinutes===data.breakTargetsMinutes[i]&&Object.hasOwn(r,"stop"))) throw new Error("PROVIDER_ERROR");
     routePlan=data;
-    routeInputs={origin:request.originCoordinates?`${request.originCoordinates.latitude},${request.originCoordinates.longitude}`:request.origin,destination:request.destination};
+    routeInputs={origin:request.originCoordinates?`${request.originCoordinates.latitude},${request.originCoordinates.longitude}`:request.origin,destination:request.destination,originPlaceId:request.originPlaceId,destinationPlaceId:request.destinationPlaceId};
     dogName=request.dogName;avoidRelief=request.preferences.avoidDedicatedReliefAreas;
     maxDetour=request.maxDetourMinutes;lifeStage=request.lifeStage[0].toUpperCase()+request.lifeStage.slice(1);
     cadenceMinutes=request.breakCadenceMinutes;
@@ -381,3 +423,89 @@ document.querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{
   renderUrgent(s||bestForWindow(urgentWindow));
   syncSelectionState(b.dataset.alt);
 });
+
+// Keep selected place IDs separate from editable text so edits cannot route to a stale selection.
+const selectedPlaces = {};
+for (const id of ['from', 'to']) {
+  const input = $(id);
+  const container = document.createElement('div');
+  container.className = 'location-suggestions';
+  container.hidden = true;
+  input.parentElement.after(container);
+  input.autocomplete = 'off';
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-expanded', 'false');
+  const list = document.createElement('div');
+  list.id = `${id}-suggestions`;
+  list.setAttribute('role', 'listbox');
+  input.setAttribute('aria-controls', list.id);
+  container.append(list);
+  const attribution = document.createElement('img');
+  attribution.src = 'https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png';
+  attribution.alt = 'Powered by Google';
+  container.append(attribution);
+  let timer, controller, revision = 0, active = -1;
+  function close() {
+    clearTimeout(timer);
+    controller?.abort();
+    revision++;
+    container.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+    active = -1;
+  }
+  input.addEventListener('input', () => {
+    delete selectedPlaces[id];
+    close();
+    const query = input.value.trim();
+    if (query.length < 3) return;
+    const version = revision;
+    timer = setTimeout(async () => {
+      controller = new AbortController();
+      try {
+        const response = await fetch(apiUrl('/api/autocomplete'), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: query, bias: currentOriginCoordinates }), signal: controller.signal
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (version !== revision || document.activeElement !== input) return;
+        list.replaceChildren();
+        for (const [index, place] of data.suggestions.entries()) {
+          const option = document.createElement('button');
+          option.type = 'button';
+          option.id = `${id}-suggestion-${index}`;
+          option.setAttribute('role', 'option');
+          option.setAttribute('aria-selected', 'false');
+          option.textContent = place.label;
+          option.addEventListener('pointerdown', event => event.preventDefault());
+          option.onclick = () => {
+            input.value = place.label;
+            selectedPlaces[id] = place.placeId;
+            if (id === 'from') { currentOriginCoordinates = null; locationRevision++; $('locationStatus').replaceChildren(); }
+            close();
+            input.focus();
+          };
+          list.append(option);
+        }
+        container.hidden = !list.children.length;
+        input.setAttribute('aria-expanded', String(!container.hidden));
+      } catch { /* Manual entry remains available when suggestions cannot load. */ }
+    }, 300);
+  });
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { close(); return; }
+    if (container.hidden) return;
+    const options = [...list.children];
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      active = (active + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      options.forEach((option, index) => option.setAttribute('aria-selected', String(index === active)));
+      input.setAttribute('aria-activedescendant', options[active].id);
+    }
+    if (event.key === 'Enter' && active >= 0) { event.preventDefault(); options[active].click(); }
+  });
+  input.addEventListener('blur', close);
+  if (id === 'from') $('useLocation')?.addEventListener('click', () => { delete selectedPlaces.from; close(); });
+}

@@ -165,3 +165,24 @@ html.native-app main{min-height:100vh;height:auto;overflow:visible}
 .location-status a {
   color: #285749;
 }
+
+.location-label { margin-bottom: 0; }
+.location-field { position: relative; margin-bottom: 16px; }
+.location-field input { padding-inline-end: 48px; }
+.clear-location {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 3px;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--forest);
+  font: inherit;
+  font-size: 22px;
+  cursor: pointer;
+}
+.clear-location:focus-visible { outline: 2px solid var(--forest); outline-offset: -4px; }

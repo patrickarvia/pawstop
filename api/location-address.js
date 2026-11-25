@@ -18,9 +18,15 @@ module.exports = async function handler(req, res) {
     url.searchParams.set('latlng', `${body.latitude},${body.longitude}`);
     url.searchParams.set('key', process.env.GOOGLE_MAPS_API_KEY || '');
     const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!response.ok) throw new Error('Provider unavailable');
+    if (!response.ok) {
+      console.warn('Reverse geocoding HTTP status', response.status);
+      return res.status(502).json({ address: null });
+    }
     const data = await response.json();
-    if (!['OK', 'ZERO_RESULTS'].includes(data.status)) throw new Error('Geocoding unavailable');
+    if (!['OK', 'ZERO_RESULTS'].includes(data.status)) {
+      console.warn('Reverse geocoding provider status', data.status);
+      return res.status(502).json({ address: null });
+    }
     const address = data.results?.[0]?.formatted_address;
     return res.status(200).json({ address: typeof address === 'string' ? address : null });
   } catch { return res.status(502).json({ address: null }); }

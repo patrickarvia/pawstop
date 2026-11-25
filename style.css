@@ -149,3 +149,19 @@ html.native-app main{min-height:100vh;height:auto;overflow:visible}
 .legal-page h2 { font-size: 26px; margin-top: 30px; }
 .legal-page p { line-height: 1.7; }
 .app-footer { display: flex; justify-content: center; gap: 24px; padding: 24px; }
+
+.native-app .location-status {
+  display: block !important;
+  margin: 12px 0 0;
+  font-size: .875rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.native-app .location-status:empty {
+  display: none !important;
+}
+
+.location-status a {
+  color: #285749;
+}

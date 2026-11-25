@@ -137,3 +137,9 @@ html.native-app,html.native-app body{height:auto;min-height:100%;overflow-x:hidd
 html.native-app body{position:static!important}
 html.native-app button,html.native-app input,html.native-app select{touch-action:auto!important}
 html.native-app main{min-height:100vh;height:auto;overflow:visible}
+
+.location-suggestions { margin-top: 6px; background: #fffdf8; border: 1px solid #dcd8cd; border-radius: 12px; overflow: hidden; }
+.location-suggestions[hidden] { display: none; }
+.location-suggestions button { display: block; width: 100%; margin: 0; padding: 12px 14px; border: 0; border-bottom: 1px solid #e8e3d9; border-radius: 0; background: transparent; color: #173c32; text-align: left; font: inherit; font-size: 16px; cursor: pointer; }
+.location-suggestions button:hover, .location-suggestions button[aria-selected="true"] { background: #eaf1eb; }
+.location-suggestions img { display: block; width: 120px; height: auto; margin: 10px 14px; }

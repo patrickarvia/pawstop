@@ -94,6 +94,7 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
     if(revision!==locationRevision) return;
     currentOriginCoordinates={latitude:position.latitude,longitude:position.longitude};
     $("from").value="Current location";
+    $("clear-from").hidden = false;
     if(locationStatus){
       const accuracy=Number.isFinite(position.accuracy)&&position.accuracy>=0?Math.ceil(position.accuracy):null;
       const weak=accuracy===null||accuracy>100;
@@ -111,12 +112,7 @@ if($("useLocation")) $("useLocation").onclick=async()=>{
       change.className='change-location';
       change.textContent='Change starting location';
       change.onclick=()=>{
-        currentOriginCoordinates=null;
-        delete selectedPlaces.from;
-        locationRevision++;
-        $('from').value='';
-        locationStatus.replaceChildren();
-        $('from').focus();
+        $('clear-from').click();
       };
       locationStatus.replaceChildren(address,document.createElement('br'),detail,document.createElement('br'),link,document.createElement('br'),change);
       locationStatus.classList.toggle('warning',weak);
@@ -428,6 +424,13 @@ document.querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{
 const selectedPlaces = {};
 for (const id of ['from', 'to']) {
   const input = $(id);
+  const clear = $(`clear-${id}`);
+  clear.hidden = !input.value;
+  clear.onclick = () => {
+    input.value = '';
+    input.focus();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
   const container = document.createElement('div');
   container.className = 'location-suggestions';
   container.hidden = true;
@@ -456,6 +459,7 @@ for (const id of ['from', 'to']) {
     active = -1;
   }
   input.addEventListener('input', () => {
+    clear.hidden = !input.value;
     delete selectedPlaces[id];
     close();
     const query = input.value.trim();
@@ -482,6 +486,7 @@ for (const id of ['from', 'to']) {
           option.addEventListener('pointerdown', event => event.preventDefault());
           option.onclick = () => {
             input.value = place.label;
+            clear.hidden = false;
             selectedPlaces[id] = place.placeId;
             if (id === 'from') { currentOriginCoordinates = null; locationRevision++; $('locationStatus').replaceChildren(); }
             close();

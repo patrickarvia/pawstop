@@ -24,6 +24,7 @@ const validCoordinates = value => value === undefined || (
 function validInput(body) {
   return object(body) && text(body.origin, 500) && text(body.destination, 500) && text(body.dogName, 100)
     && validCoordinates(body.originCoordinates)
+    && [body.originPlaceId, body.destinationPlaceId].every(value => value === undefined || text(value, 300))
     && ['puppy', 'adult', 'senior'].includes(body.lifeStage)
     && Number.isFinite(body.breakCadenceMinutes) && body.breakCadenceMinutes >= 1 && body.breakCadenceMinutes <= 1440
     && Number.isFinite(body.maxDetourMinutes) && body.maxDetourMinutes >= 0 && body.maxDetourMinutes <= 1440
@@ -93,8 +94,8 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         origin: body.originCoordinates
           ? { location: { latLng: { latitude: body.originCoordinates.latitude, longitude: body.originCoordinates.longitude } } }
-          : { address: body.origin.trim() },
-        destination: { address: body.destination.trim() },
+          : body.originPlaceId ? { placeId: body.originPlaceId } : { address: body.origin.trim() },
+        destination: body.destinationPlaceId ? { placeId: body.destinationPlaceId } : { address: body.destination.trim() },
         travelMode: 'DRIVE',
         // Temporary Phase 1 choice; the final V2.2 traffic mode remains open.
         routingPreference: 'TRAFFIC_UNAWARE'
